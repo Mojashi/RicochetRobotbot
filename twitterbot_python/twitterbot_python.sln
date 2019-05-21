@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.645
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "twitterbot_python", "twitterbot_python\twitterbot_python.pyproj", "{063055AB-4F8F-4464-96B5-E07127EE8811}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{063055AB-4F8F-4464-96B5-E07127EE8811}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{063055AB-4F8F-4464-96B5-E07127EE8811}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CAAE8FDC-E937-4E7F-AD5B-89AF65DCF22F}
+	EndGlobalSection
+EndGlobal

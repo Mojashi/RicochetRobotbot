@@ -10,13 +10,13 @@ extern "C" FILE * __cdecl __iob_func(void)
 	return _iob;
 }
 int main() {
-	std::string userName("kotatsu_sup");  //ユーザ名
+	std::string userName("kotatsua_sup");  //ユーザ名
 	std::string passWord("gear1001");  //パスワード
 
 	std::string myConsumerKey("kNePGOncpjWFreJ328eyYohGz");
 	std::string myConsumerSecuret("UT1iFpefTYbGfP2xL5hjGCYQnqNUku0XN3MA4Oi14nnc15WI5I");
 
-	std::string myOAuthAccessTokenKey("953817124748738561 - fPoMGgUygN8nIoHAGIiXdu6TAn9eJBd");
+	std::string myOAuthAccessTokenKey("953817124748738561-fPoMGgUygN8nIoHAGIiXdu6TAn9eJBd");
 	std::string myOAuthAccessTokenSecret("XVHphf6VFbXFglpmUom59Vg70FVco7Kpp2R6BTPtS5Ida");
 
 	std::ifstream oAuthTokenKeyIn;

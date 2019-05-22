@@ -1,0 +1,14 @@
+{
+  "Grand Master": {
+    "range": [ 1, 1 ],
+    "deco": "õ %user õ"
+  },
+  "Master": {
+    "range": [ 2, 3 ],
+    "deco": "<-- %user -->"
+  },
+  "Specialist": {
+    "range": [ 4, 7 ],
+    "deco": "-- %user --"
+  }
+}

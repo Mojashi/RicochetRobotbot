@@ -5,38 +5,48 @@ import subprocess
 import sys
 import json
 import time
+import copy
 
-def GenerateImage(mp, goalpos, robotpos,mainrobot):
-
+def GenerateImage(mp, goalpos, robotpos, mainrobot, baseimgname = ''):
+    
     robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
+    width = robotimg[0].width
+    height = robotimg[0].height
 
-    groundimg = Image.open('img/ground.png')
-    wallimg = Image.open('img/wall.png')
-    goalimg = Image.open('img/goal.png')
-    centerimg = Image.open('img/center.png');
-    
-    markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
+    ret = Image.new('RGB', (width * 16, height*16))
 
-    
-    ret = Image.new('RGB', (groundimg.width * 16, groundimg.height*16))
-    
-    for i in range(16):
-        for j in range(16):
-            if (i==7 or i==8) and (j == 7 or j == 8):
-                ret.paste(centerimg, (i*groundimg.width, j*groundimg.height))
-            else:
-                ret.paste(groundimg, (i*groundimg.width, j*groundimg.height))
-                for k in range(4):
-                    if mp[i][j][k] == 1:
-                        ret.paste(wallimg.rotate(k * -90), (i*groundimg.width, j*groundimg.height), wallimg.rotate(k * -90).split()[3])
+    if baseimgname == '':
+        groundimg = Image.open('img/ground.png')
+        wallimg = Image.open('img/wall.png')
+        goalimg = Image.open('img/goal.png')
+        centerimg = Image.open('img/center.png');
+        
+        markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
+
+        
+        
+        for i in range(16):
+            for j in range(16):
+                if (i==7 or i==8) and (j == 7 or j == 8):
+                    ret.paste(centerimg, (i*width, j*height))
+                else:
+                    ret.paste(groundimg, (i*width, j*height))
+                    for k in range(4):
+                        if mp[i][j][k] == 1:
+                            ret.paste(wallimg.rotate(k * -90), (i*width, j*height), wallimg.rotate(k * -90).split()[3])
+
+        ret.paste(markimg[mainrobot], (int(7.5*width), int(7.5*height)), markimg[mainrobot].split()[3]);
+        ret.paste(goalimg,  (goalpos[0]*width, goalpos[1]*height), goalimg.split()[3])
+        
+        baseimg = copy.copy(ret)
+    else:
+        baseimg = Image.open(baseimgname)
+        ret = Image.open(baseimgname)
 
     for i in range(5):
-        ret.paste(robotimg[i], (robotpos[i][0]*groundimg.width, robotpos[i][1]*groundimg.height), robotimg[i].split()[3])
+        ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
 
-    ret.paste(markimg[mainrobot], (int(7.5*groundimg.width), int(7.5*groundimg.height)), markimg[mainrobot].split()[3]);
-    ret.paste(goalimg,  (goalpos[0]*groundimg.width, goalpos[1]*groundimg.height), goalimg.split()[3])
-
-    return ret
+    return baseimg,ret
 
 def setwall(mp,x,y,d):
     Dir = [[0,-1],[1,0], [0,1],[-1,0]]
@@ -144,9 +154,11 @@ def ProblemGenerate(fname):
             print("unsolvable")
     
     
-    GenerateImage(mp,goalpos,robotpos,mainrobot).save(fname+'.png')
+    pics = GenerateImage(mp,goalpos,robotpos,mainrobot)
+    pics[0].save(fname+'_base.png')
+    pics[1].save(fname+'.png')
     
-    outdict = {"board":mp, "img":fname+'.png',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"answer":answer.decode('utf-8').split('\n')}
+    outdict = {"board":mp, "baseimg":fname+'_base.png',"img":fname+'.png',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"answer":answer.decode('utf-8').split('\n')}
     
     f = open(fname + '.json', 'w')
     json.dump(outdict,f)

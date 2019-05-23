@@ -189,6 +189,7 @@ def commandproc(userdata, stat, fr = -1):
         if len(args) <= 1:
             return
         if args[2] == 'wasd':
+            setdefaultuser(userdata, stat.user.id_str, stat.user.screen_name)
             userdata[stat.user.id_str]['keyconfig'] = {'w':0,'d':1,'s':2,'a':3}
             api.create_favorite(stat.id)
     
@@ -219,7 +220,7 @@ def convertans(answer, robotpos):
 def getmentions():
 
     if (datetime.now() - getmentions.lastgettime).total_seconds() >= 15:
-        mentions = api.mentions_timeline(since_id=getmentions.lastid)
+        mentions = api.mentions_timeline(since_id=getmentions.lastid, count=199)
         getmentions.lastgettime = datetime.now()
         if len(mentions) > 0:
             getmentions.lastid = mentions[0].id
@@ -321,11 +322,11 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
                         winproc(userdata, stat, problemname)
                         
                         api.update_status('Finished.\nWinner '+decoratename('@'+stat.user.screen_name, stat.user.id_str, userdata) + '\n'+'https://twitter.com/'+stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                        return
                 
                 else:
                     api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
                 
-                    return
 
         if datetime.now() >= timelimit:
             text = 'Timeup.\n'
@@ -341,7 +342,7 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
 
 def sleepwithlisten(sec, userdata, roundstart = -1):
     starttime = datetime.now()
-    while (starttime - datetime.now()).total_seconds() < sec:
+    while (datetime.now() - starttime).total_seconds() < sec:
         mentions = getmentions()
         
         for stat in mentions:
@@ -403,8 +404,8 @@ if roundname in rounds.keys():
 
 while True:
     
-    #if roundstart == -1:
-     #   api.update_status('Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
+    if roundstart == -1:
+        api.update_status('Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
 
     curproblemid, problemname = tweetnewproblem()
 
@@ -431,5 +432,5 @@ while True:
         
             sleepwithlisten(600, userdata)
         else:
-            sleepwithlisten(40, userdata, roundstart)
+            sleepwithlisten(20, userdata, roundstart)
 

@@ -383,7 +383,7 @@ getmentions.lastgettime = datetime(2000,10,1,0,0,0,0)
 getmentions.lastid = api.mentions_timeline(count=1)[0].id
 
 
-roundrange = [5,48]
+roundrange = [5,55]
 
 with open('userdata.json') as f:
     userdata = json.load(f)

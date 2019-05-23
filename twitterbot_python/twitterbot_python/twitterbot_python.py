@@ -73,11 +73,18 @@ def tweetnewproblem():
 
     return stat.id, str(len(history))
 
-def creategif(mp, robotpos, goalpos, mainrobot, imgname, baseimgname, ans):
-    Dirnum = {'u':0,'r':1, 'd':2,'l':3}
+def creategif(problemname, ans):
     Dir = [[0,-1],[1,0],[0,1],[-1,0]]
-    
-    curpos = copy.copy(robotpos)
+    with open('problems/'+problemname+'.json') as f:
+        cdict = json.load(f)
+        mp = cdict['board']
+        curpos = cdict['robotpos']
+        goalpos = cdict['goalpos']
+        mainrobot = cdict['mainrobot']
+        answer =  cdict['answer']
+        imgname = cdict['img']
+        baseimgname = cdict['baseimg']
+
     fimg =Image.open(imgname)
     width = int(fimg.width/2)
     height= int(fimg.height/2)
@@ -86,7 +93,7 @@ def creategif(mp, robotpos, goalpos, mainrobot, imgname, baseimgname, ans):
 
     for way in ans:
         num = int(way[0])
-        d = Dirnum[way[1]]
+        d = way[1]
 
         fr = curpos[num]
         to = curpos[num]
@@ -152,14 +159,6 @@ def tweetoverallranking(userdata, basetext = "", reply_id = None):
         return api.update_status(text)
     else:
         return api.update_status(text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
-                
-#def createuser(userdata, usr):
-#    userdata[usr.id_str] = {}
-#    userdata[usr.id_str]['rank'] = 9999999
-#    userdata[usr.id_str]['wincount'] = 0
-#    userdata[usr.id_str]['screen_name'] = usr.screen_name
-#    userdata[usr.id_str]['history'] = []
-#    userdata[usr.id_str]['winhistory'] = []
 
 def setdefaultuser(userdata, usr_id_str, usr_name = ''):
     userdata.setdefault(usr_id_str, {})
@@ -198,6 +197,14 @@ def commandproc(userdata, stat, fr = -1):
             api.create_favorite(stat.id)
         with open('userdata.json', 'w') as f:
             json.dump(userdata, f)  
+
+    elif args[1] == '!gif':
+        ans = parsetext(stat.text, userdata[stat.user.id_str]['keyconfig'])
+        if ans != -1:
+            with open('history.json','r') as f:
+                history = json.load(f)  
+                creategif(stat.)
+
     return
 
 def convertans(answer, robotpos):

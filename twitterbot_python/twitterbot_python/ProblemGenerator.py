@@ -149,6 +149,9 @@ def ProblemGenerate(fname):
        
         try:
             answer = solve(mp,goalpos, robotpos,mainrobot)
+            if int(answer.decode('utf-8').split('\n')[0]) <= 3:
+                print("too short")
+                continue
             break;
         except subprocess.TimeoutExpired:
             print("unsolvable")

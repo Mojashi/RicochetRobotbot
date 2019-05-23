@@ -4,6 +4,7 @@ import subprocess
 import json
 import copy
 import ProblemGenerator
+import re
 from PIL import Image
 from datetime import datetime
 
@@ -15,22 +16,35 @@ def decoratename(username, userid_str, userdata):
                 return v['deco'].replace('%user', username)
     return username
 
+def parsetext(text, dirdict):
+    ways = text.split()
+
+    while ways[0][0] == '@':
+        ways.pop(0)
+
+    match = re.findall(r'[a-z0-9]', ways[0].lower())
+
+    if len(match) % 2 == 1:
+        return -1
+
+    ret = []
+
+    for i in range(0,len(match),2):
+        if ord(match[i]) >= ord('0') and ord(match[i]) <= ord('4') and match[i + 1] in dirdict.keys():
+            ret.append([int(match[i]), int(dirdict[match[i + 1]])])
+        else:
+            return -1
+
+    return ret
+
 def checkanswer(mp, robotpos, goalpos, mainrobot, ans):
-    Dirnum = {'u':0,'r':1, 'd':2,'l':3}
     Dir = [[0,-1],[1,0],[0,1],[-1,0]]
 
     curpos = copy.copy(robotpos)
 
     for way in ans:
-        if len(way) != 2:
-            return -2
-        if not(ord(way[0])>=ord('0') and ord(way[0]) <= ord('4')):
-            return -2
-        if way[1] !='u' and way[1] !='r' and way[1] !='d' and way[1] !='l':
-            return -2
-
-        num = int(way[0])
-        d = Dirnum[way[1]]
+        num = way[0]
+        d = way[1]
 
         while True:
             nex = [curpos[num][0] + Dir[d][0],curpos[num][1] + Dir[d][1]]
@@ -154,17 +168,36 @@ def setdefaultuser(userdata, usr_id_str, usr_name = ''):
     userdata[usr_id_str].setdefault('screen_name', usr_name)
     userdata[usr_id_str].setdefault('history', [])
     userdata[usr_id_str].setdefault('winhistory', [])
+    userdata[usr_id_str].setdefault('keyconfig', {'u':0,'r':1,'d':2,'l':3})
 
-def commandproc(userdata, stat, fr):
-    if stat.text.split()[1] == '!myrank':
+def commandproc(userdata, stat, fr = -1):
+    args = stat.text.split()
+    if len(args) == 0:
+        return
+
+    if args[1] == '!myrank':
         setdefaultuser(userdata, stat.user.id_str, stat.user.screen_name)
         api.update_status('Wins:'+ str(userdata[stat.user.id_str]['wincount']) + '\nRank:' + str(userdata[stat.user.id_str]['rank']), in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
     
-    if stat.text.split()[1] == '!roundrank':
+    elif fr != -1 and args[1] == '!roundrank':
         tweethourlyranking(userdata, fr, reply_id = stat.id)
 
-    if stat.text.split()[1] == '!overallrank':
+    elif args[1] == '!overallrank':
         tweetoverallranking(userdata, reply_id = stat.id)
+        
+    elif args[1] == '!setting':
+        if len(args) <= 1:
+            return
+        if args[2] == 'wasd':
+            userdata[stat.user.id_str]['keyconfig'] = {'w':0,'d':1,'s':2,'a':3}
+            api.create_favorite(stat.id)
+    
+        elif args[2] == 'urdl':
+            userdata[stat.user.id_str]['keyconfig'] = {'u':0,'r':1,'d':2,'l':3}
+            api.create_favorite(stat.id)
+        with open('userdata.json', 'w') as f:
+            json.dump(userdata, f)  
+    return
 
 def convertans(answer, robotpos):
     Dir = {'u':[0,-1],'r':[1,0],'d':[0,1],'l':[-1,0]}
@@ -183,9 +216,42 @@ def convertans(answer, robotpos):
 
     return ret.rstrip(',')
 
+def getmentions():
+
+    if (datetime.now() - getmentions.lastgettime).total_seconds() >= 15:
+        mentions = api.mentions_timeline(since_id=getmentions.lastid)
+        getmentions.lastgettime = datetime.now()
+        if len(mentions) > 0:
+            getmentions.lastid = mentions[0].id
+        return mentions
+
+    return []
+
+
+
+def winproc(userdata, stat, problemname):
+    userdata[stat.user.id_str]['wincount']+=1
+    userdata[stat.user.id_str]['winhistory'].append(problemname)
+
+    sorteduser = sorted(userdata.items(), key=lambda x:x[1]['wincount'],reverse=True)
+
+    realrank = 1
+    buf = -1
+    for i in range(len(sorteduser)):
+        usr = sorteduser[i][0]
+        if buf != userdata[usr]['wincount']:
+            realrank = i + 1
+        userdata[usr]['rank'] = realrank
+        buf = userdata[usr]['wincount']
+
+    with open('userdata.json', 'w') as f:
+        json.dump(userdata, f)
+    return
+
+
 def maincycle(timelimit, roundstart, curproblemid, problemname):
     curshortest = 10000000
-    lastid = curproblemid
+    curshorteststat = None
     
     with open('userdata.json') as f:
         userdata = json.load(f)
@@ -206,10 +272,11 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
     
     assumed_solution = convertans(answer, robotpos)
     print(assumed_solution)
+
     while True:
-        mentions = api.mentions_timeline(since_id=lastid)
+        mentions = getmentions()
         if len(mentions) > 0:
-            lastid = mentions[0].id
+
             mentions.reverse()
             for stat in mentions:
                 commandproc(userdata, stat, roundstart)
@@ -223,66 +290,64 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
                     userdata[stat.user.id_str]['history'].append(problemname)
 
                 print("from:"+stat.user.screen_name + " " + stat.text)
-
-                ways =stat.text.split()
-                while ways[0][0] == '@':
-                    ways.pop(0)
-                curans = ways[0].split(',')
-
-                waycou = checkanswer(mp,robotpos,goalpos,mainrobot,curans)
-                if waycou == -2:
+                ways = parsetext(stat.text, userdata[stat.user.id_str]['keyconfig'])
+                if ways == -1:
                     text = "Invalid Format"
-                elif waycou == -1:
-                    text = "Wrong Answer"
                 else:
-                    text = "Accepted(" + str(waycou) + ' moves)'
-                    if curshortest > waycou:
-                        curshortest = waycou
-                        text += '\nCurrently Shortest'
-                    elif curshortest != 10000000:
-                        text += '\nCurrently ' + str(curshortest) + ' moves is shortest'
+                    waycou = checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                    if waycou == -1:
+                        text = "Wrong Answer"
+                    else:
+                        text = "Accepted(" + str(waycou) + ' moves)'
+                        if curshortest > waycou:
+                            curshortest = waycou
+                            text += '\nCurrently Shortest'
+                            curshorteststat = stat
+                        elif curshortest != 10000000:
+                            text += '\nCurrently ' + str(curshortest) + ' moves is shortest'
 
-                    if int(answer[0]) == waycou:
-                        text += '\nOptimal'
+                        if int(answer[0]) == waycou:
+                            text += '\nOptimal'
                 
-                if waycou == -1 or waycou >= 0:
+                if ways != -1:
                     #creategif(mp,robotpos,goalpos,mainrobot,imgname,baseimgname,curans)
                     #try:
                     #    mediaresp = api.media_upload(filename='2019-04-15 00-36-38.mp4')
                     #    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True, media_ids=[mediaresp['media_id']])
                     #except:
                     api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+
+                    if int(answer[0]) == waycou:
+                        winproc(userdata, stat, problemname)
+                        
+                        api.update_status('Finished.\nWinner '+decoratename('@'+stat.user.screen_name, stat.user.id_str, userdata) + '\n'+'https://twitter.com/'+stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                
                 else:
                     api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
                 
-                if int(answer[0]) == waycou:
-                    userdata[stat.user.id_str]['wincount']+=1
-                    userdata[stat.user.id_str]['winhistory'].append(problemname)
-
-                    sorteduser = sorted(userdata.items(), key=lambda x:x[1]['wincount'],reverse=True)
-
-                    realrank = 1
-                    buf = -1
-                    for i in range(len(sorteduser)):
-                        usr = sorteduser[i][0]
-                        if buf != userdata[usr]['wincount']:
-                            realrank = i + 1
-                        userdata[usr]['rank'] = realrank
-                        buf = userdata[usr]['wincount']
-
-                    with open('userdata.json', 'w') as f:
-                        json.dump(userdata, f)
-                        
-                    api.update_status('Finished.\nWinner '+decoratename('@'+stat.user.screen_name, stat.user.id_str, userdata) + '\n'+'https://twitter.com/'+stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
-                
-
-
                     return
 
         if datetime.now() >= timelimit:
-            api.update_status('Timeup.\nAnswer:'+assumed_solution, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+            text = 'Timeup.\n'
+            if curshorteststat != None:
+                winproc(userdata, curshorteststat, problemname)
+                text += 'Winner ' + decoratename('@'+curshorteststat.user.screen_name, curshorteststat.user.id_str, userdata) + '\n'+'https://twitter.com/'+curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
+            
+            text += 'Answer:'+assumed_solution
+            api.update_status(text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
             return
-        time.sleep(15)
+
+    return
+
+def sleepwithlisten(sec, userdata, roundstart = -1):
+    starttime = datetime.now()
+    while (starttime - datetime.now()).total_seconds() < sec:
+        mentions = getmentions()
+        
+        for stat in mentions:
+            commandproc(userdata, stat, roundstart)
+
+    return
 
 
 CONSUMER_KEY = 'kNePGOncpjWFreJ328eyYohGz'
@@ -314,11 +379,16 @@ api = tweepy.API(auth)
 
 print('Done!')
 
+getmentions.lastgettime = datetime(2000,10,1,0,0,0,0)
+getmentions.lastid = api.mentions_timeline(count=1)[0].id
 
-roundrange = [5,55]
 
-while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
-    time.sleep(1)
+roundrange = [5,48]
+
+with open('userdata.json') as f:
+    userdata = json.load(f)
+    while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
+        sleepwithlisten(1, userdata)
 
 roundstart = -1
 timelimit = -1
@@ -333,8 +403,8 @@ if roundname in rounds.keys():
 
 while True:
     
-    if roundstart == -1:
-        api.update_status('Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
+    #if roundstart == -1:
+     #   api.update_status('Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
 
     curproblemid, problemname = tweetnewproblem()
 
@@ -352,11 +422,14 @@ while True:
 
     maincycle(timelimit, roundstart, curproblemid, problemname)
     
-    if datetime.now() >= timelimit:
-        with open('userdata.json') as f:
-            userdata = json.load(f)
+    with open('userdata.json') as f:
+        userdata = json.load(f)
+        if datetime.now() >= timelimit:
         
-        tweetoverallranking(userdata, reply_id = tweethourlyranking(userdata, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
-        roundstart = -1
+            tweetoverallranking(userdata, reply_id = tweethourlyranking(userdata, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
+            roundstart = -1
+        
+            sleepwithlisten(600, userdata)
+        else:
+            sleepwithlisten(40, userdata, roundstart)
 
-        time.sleep(600)

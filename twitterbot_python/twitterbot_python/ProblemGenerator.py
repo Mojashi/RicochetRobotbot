@@ -149,7 +149,7 @@ def ProblemGenerate(fname):
        
         try:
             answer = solve(mp,goalpos, robotpos,mainrobot)
-            if int(answer.decode('utf-8').split('\n')[0]) <= 3:
+            if int(answer.decode('utf-8').split('\n')[0]) <= 5:
                 print("too short")
                 continue
             break;

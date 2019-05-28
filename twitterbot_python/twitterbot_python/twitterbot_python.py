@@ -3,13 +3,25 @@ import time
 import subprocess
 import json
 import copy
+import random
 import ProblemGenerator
 import re
 from PIL import Image
 from datetime import datetime
+from imgurpython import ImgurClient
+
+def absolutedofunc(func,*args, **kwargs):
+    while True:
+        try:
+            ret = func(*args, **kwargs)
+            return ret
+        except:
+            print('tweet failed')
+            time.sleep(10)
+    return
 
 def decoratename(username, userid_str, userdata):
-    with open('decorate.json') as f:
+    with open('decorate.json',encoding="utf-8_sig") as f:
         decorate = json.load(f)
         for v in decorate.values():
             if v['range'][0] <= userdata[userid_str]['rank'] and v['range'][1] >= userdata[userid_str]['rank']:
@@ -21,8 +33,10 @@ def parsetext(text, dirdict):
 
     while ways[0][0] == '@':
         ways.pop(0)
+        
+    waysstr = ''.join(ways)
 
-    match = re.findall(r'[a-z0-9]', ways[0].lower())
+    match = re.findall(r'[a-z0-9]', waysstr.lower())
 
     if len(match) % 2 == 1:
         return -1
@@ -64,7 +78,7 @@ def tweetnewproblem():
 
     ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1))
     
-    stat = api.update_with_media(filename='problems/'+str(len(history) + 1)+'.png', status="Problem number:"+str(len(history) + 1))
+    stat = absolutedofunc(api.update_with_media, filename='problems/' + str(len(history) + 1) + '.png', status="Problem number:" + str(len(history) + 1))
 
     history[len(history) + 1] = stat.id
 
@@ -83,11 +97,12 @@ def creategif(problemname, ans):
         mainrobot = cdict['mainrobot']
         answer =  cdict['answer']
         imgname = cdict['img']
+        if 'baseimg' not in cdict.keys():
+            return None
         baseimgname = cdict['baseimg']
-
-    fimg =Image.open(imgname)
-    width = int(fimg.width/2)
-    height= int(fimg.height/2)
+    fimg = Image.open(imgname)
+    width = int(fimg.width / 2)
+    height = int(fimg.height / 2)
     imgs = [fimg.resize((width,height))]
     
 
@@ -103,8 +118,8 @@ def creategif(problemname, ans):
                 break
             to = nex
 
-        while [int(fr[0]*10),int(fr[1]*10)] != [int(to[0]*10),int(to[1]*10)]:
-            nex = [fr[0] + Dir[d][0]/1.0, fr[1] + Dir[d][1]/1.0]
+        while [int(fr[0] * 10),int(fr[1] * 10)] != [int(to[0] * 10),int(to[1] * 10)]:
+            nex = [fr[0] + Dir[d][0] / 1.0, fr[1] + Dir[d][1] / 1.0]
             fr = nex
             curpos[num] = fr
             imgs.append(ProblemGenerator.GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
@@ -114,11 +129,16 @@ def creategif(problemname, ans):
     
         curpos[num] = [int(curpos[num][0]),int(curpos[num][1])]
 
-    imgs[0].save('buf.gif', save_all = True, append_images=imgs[1:], optimize=True,duration=50)
+    imgs[0].save('buf.gif',save_all = True, append_images=imgs[1:], optimize=True,duration=70, loop = 0)
+    try:
+        client = ImgurClient('756d458eceab39c', '0495cbf4706ec27591a48193c08fff6b630e9634')
+        return client.upload_from_path('buf.gif')
+    except:
+        print("gif upload except")
+        return None
+    return None
 
-    return
-
-def tweethourlyranking(userdata, fr, basetext = "", reply_id = None):
+def tweethourlyranking(userdata, fr, basetext="", reply_id=None):
     text = basetext + "Round Ranking:\n"
     
     sorteduser = sorted(userdata.items(), key=lambda x:sum(int(gm) >= fr for gm in x[1]['winhistory']),reverse=True)
@@ -133,18 +153,18 @@ def tweethourlyranking(userdata, fr, basetext = "", reply_id = None):
         winc = sum(int(gm) >= fr for gm in usr['winhistory'])
         if winc != buf:
             realrank = cou + 1
-        cou += 1
-        text += str(realrank) + '. ' + decoratename(usr['screen_name'], sorteduser[i][0], userdata) + ' ' + str(winc)+ 'win\n'
+        text += str(realrank) + '. ' + decoratename(usr['screen_name'], sorteduser[i][0], userdata) + ' ' + str(winc) + 'win\n'
         buf = winc
         if cou == 9:
             break
+        cou += 1
 
     if reply_id == None:
-        return api.update_status(text)
+        return absolutedofunc(api.update_status, text)
     else:
-        return api.update_status(text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
+        return absolutedofunc(api.update_status,text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
 
-def tweetoverallranking(userdata, basetext = "", reply_id = None):
+def tweetoverallranking(userdata, basetext="", reply_id=None):
     text = "Overall Ranking:\n"
     
     sorteduser = sorted(userdata.items(), key=lambda x:x[1]['wincount'],reverse=True)
@@ -156,11 +176,10 @@ def tweetoverallranking(userdata, basetext = "", reply_id = None):
 
         
     if reply_id == None:
-        return api.update_status(text)
+        return absolutedofunc(api.update_status,text)
     else:
-        return api.update_status(text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
-
-def setdefaultuser(userdata, usr_id_str, usr_name = ''):
+        return absolutedofunc(api.update_status,text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
+def setdefaultuser(userdata, usr_id_str, usr_name=''):
     userdata.setdefault(usr_id_str, {})
     userdata[usr_id_str].setdefault('rank', 9999999)
     userdata[usr_id_str].setdefault('wincount', 0)
@@ -169,41 +188,91 @@ def setdefaultuser(userdata, usr_id_str, usr_name = ''):
     userdata[usr_id_str].setdefault('winhistory', [])
     userdata[usr_id_str].setdefault('keyconfig', {'u':0,'r':1,'d':2,'l':3})
 
-def commandproc(userdata, stat, fr = -1):
+   
+
+def commandproc(userdata, stat, fr=-1):
     args = stat.text.split()
+    while args[0][0] == '@':
+        args.pop(0)
+
     if len(args) == 0:
         return
 
-    if args[1] == '!myrank':
+    if args[0] == '!myrank':
         setdefaultuser(userdata, stat.user.id_str, stat.user.screen_name)
-        api.update_status('Wins:'+ str(userdata[stat.user.id_str]['wincount']) + '\nRank:' + str(userdata[stat.user.id_str]['rank']), in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+        absolutedofunc(api.update_status,'Wins:' + str(userdata[stat.user.id_str]['wincount']) + '\nRank:' + str(userdata[stat.user.id_str]['rank']), in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
     
-    elif fr != -1 and args[1] == '!roundrank':
+    elif args[0] == '!ありがとう' or args[0] == '!thank':
+        absolutedofunc(api.update_status,'どういたしまして', in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+    
+    elif args[0] == '!omikuji':
+        kuji = ['Daikichi', 'Chukichi', 'Shokichi', 'Suekichi', 'Kyo', 'Daikyo']
+        absolutedofunc(api.update_status,kuji[random.randint(0, len(kuji) - 1)], in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+    
+    elif fr != -1 and args[0] == '!roundrank':
         tweethourlyranking(userdata, fr, reply_id = stat.id)
 
-    elif args[1] == '!overallrank':
+    elif args[0] == '!overallrank':
         tweetoverallranking(userdata, reply_id = stat.id)
-        
-    elif args[1] == '!setting':
+
+    elif args[0] == '!janken':
+            if len(args) >= 2:
+                if args[1] == 'GOO' or args[1] == 'PAA' or args[1] == 'CHOKI':
+                    losetext = 'YOU LOSE!'
+                    wintext = 'YOU WIN!'
+                    aikotext = 'YOU AIKO!'
+                    wintable = {'GOO' : {'PAA':losetext, 'GOO':aikotext, 'CHOKI':wintext, 'OTHER':losetext},
+                                'CHOKI' : {'PAA':wintext, 'GOO':losetext, 'CHOKI':aikotext, 'OTHER':losetext},
+                                'PAA' : {'PAA':aikotext, 'GOO':wintext, 'CHOKI':losetext, 'OTHER':losetext}}
+                    hands = {'✊ GOO':'GOO','👊 GOO':'GOO','🤛 GOO':'GOO','🤜 GOO':'GOO','☝ GOOCHOKI':'OTHER', '🖕 GOOCHOKI':'OTHER','✂ CHOKI':'CHOKI','✌ CHOKI':'CHOKI','🤘 CHOKI':'CHOKI','🤞 CHOKI':'CHOKI','✋ PAA':'PAA','👋 PAA':'PAA', '👐 PAA':'PAA', '🖐 PAA':'PAA','🖖 PAACHOKI':'OTHER'}
+                    hand = list(hands.items())[random.randint(0,len(list(hands.keys())) - 1)]
+                    absolutedofunc(api.update_status, hand[0] + '\n' + wintable[args[1]][hand[1]], in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+
+    elif args[0] == '!setting':
         if len(args) <= 1:
             return
-        if args[2] == 'wasd':
-            setdefaultuser(userdata, stat.user.id_str, stat.user.screen_name)
+        setdefaultuser(userdata, stat.user.id_str, stat.user.screen_name)
+        if args[1] == 'wasd':
             userdata[stat.user.id_str]['keyconfig'] = {'w':0,'d':1,'s':2,'a':3}
-            api.create_favorite(stat.id)
+            absolutedofunc(api.create_favorite,stat.id)
     
-        elif args[2] == 'urdl':
+        elif args[1] == 'urdl':
             userdata[stat.user.id_str]['keyconfig'] = {'u':0,'r':1,'d':2,'l':3}
-            api.create_favorite(stat.id)
+            absolutedofunc(api.create_favorite,stat.id)
+            
+        elif args[1] == 'hjkl':
+            userdata[stat.user.id_str]['keyconfig'] = {'k':0,'l':1,'j':2,'h':3}
+            absolutedofunc(api.create_favorite,stat.id)
+
         with open('userdata.json', 'w') as f:
             json.dump(userdata, f)  
 
-    elif args[1] == '!gif':
-        ans = parsetext(stat.text, userdata[stat.user.id_str]['keyconfig'])
-        if ans != -1:
-            with open('history.json','r') as f:
-                history = json.load(f)  
-                creategif(stat.)
+    elif args[0] == '!gif':
+        rpd = api.get_status(stat.in_reply_to_status_id)
+        gifurl = None
+
+        with open('gifs.json','r') as f:
+            algif = json.load(f)
+            if rpd.id_str in algif.keys():
+                gifurl = algif[rpd.id_str]
+
+        print("gif")
+        if gifurl == None:
+            setdefaultuser(userdata,rpd.user.id_str, rpd.user.screen_name)
+            ans = parsetext(rpd.text, userdata[rpd.user.id_str]['keyconfig'])
+            if ans != -1:
+                with open('history.json','r') as f:
+                    history = json.load(f)
+                    probnamelis = [k for k, v in history.items() if v == rpd.in_reply_to_status_id]
+                    if len(probnamelis) > 0:
+                        gifurl = creategif(probnamelis[0], ans)
+                        algif[rpd.id_str] = gifurl
+
+                        with open('gifs.json','w') as f:
+                             json.dump(algif, f)
+    
+        if gifurl != None:
+            absolutedofunc(api.update_status,gifurl['link'], in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
 
     return
 
@@ -227,7 +296,9 @@ def convertans(answer, robotpos):
 def getmentions():
 
     if (datetime.now() - getmentions.lastgettime).total_seconds() >= 15:
-        mentions = api.mentions_timeline(since_id=getmentions.lastid, count=199)
+        mentions = absolutedofunc(api.mentions_timeline,since_id=getmentions.lastid, count=199)
+        for stat in mentions:
+            print("from:" + stat.user.screen_name + " " + stat.text)
         getmentions.lastgettime = datetime.now()
         if len(mentions) > 0:
             getmentions.lastid = mentions[0].id
@@ -235,7 +306,7 @@ def getmentions():
 
     return []
 
-
+   
 
 def winproc(userdata, stat, problemname):
     userdata[stat.user.id_str]['wincount']+=1
@@ -264,13 +335,13 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
     with open('userdata.json') as f:
         userdata = json.load(f)
             
-    with open('problems/'+problemname+'.json') as f:
+    with open('problems/' + problemname + '.json') as f:
         cdict = json.load(f)
         mp = cdict['board']
         robotpos = cdict['robotpos']
         goalpos = cdict['goalpos']
         mainrobot = cdict['mainrobot']
-        answer =  cdict['answer']
+        answer = cdict['answer']
         imgname = cdict['img']
         baseimgname = cdict['baseimg']
 
@@ -297,64 +368,92 @@ def maincycle(timelimit, roundstart, curproblemid, problemname):
                 if problemname not in userdata[stat.user.id_str]['history']:
                     userdata[stat.user.id_str]['history'].append(problemname)
 
-                print("from:"+stat.user.screen_name + " " + stat.text)
                 ways = parsetext(stat.text, userdata[stat.user.id_str]['keyconfig'])
-                if ways == -1:
-                    text = "Invalid Format"
-                else:
+
+                if ways != -1:
                     waycou = checkanswer(mp,robotpos,goalpos,mainrobot, ways)
-                    if waycou == -1:
-                        text = "Wrong Answer"
-                    else:
+                    if waycou != -1:
+                        absolutedofunc(api.create_favorite,stat.id)
                         text = "Accepted(" + str(waycou) + ' moves)'
                         if curshortest > waycou:
                             curshortest = waycou
                             text += '\nCurrently Shortest'
                             curshorteststat = stat
-                        elif curshortest != 10000000:
-                            text += '\nCurrently ' + str(curshortest) + ' moves is shortest'
+                            
+                            if int(answer[0]) == waycou:
+                                text += '\nOptimal'
 
-                        if int(answer[0]) == waycou:
-                            text += '\nOptimal'
+                            absolutedofunc(api.update_status,text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+                            
+                            if int(answer[0]) == waycou:
+                                winproc(userdata, stat, problemname)
+                                absolutedofunc(api.update_status,'Finished.\n🎉Winner ' + decoratename('@' + stat.user.screen_name, stat.user.id_str, userdata) + '\n' + 'https://twitter.com/' + stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                                
+                                gifurl = creategif(problemname, ways)
+                                if gifurl != None:
+                                    absolutedofunc(api.update_status,'gif\n'+gifurl['link'], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                                
+                                return
+
+
+                #if ways == -1:
+                #    text = "Invalid Format"
+                #else:
+                #    waycou = checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                #    if waycou == -1:
+                #        text = "Wrong Answer"
+                #    else:
+                #        text = "Accepted(" + str(waycou) + ' moves)'
+                #        if curshortest > waycou:
+                #            curshortest = waycou
+                #            text += '\nCurrently Shortest'
+                #            curshorteststat = stat
+                #        elif curshortest != 10000000:
+                #            text += '\nCurrently ' + str(curshortest) + ' moves is shortest'
+
+                #        if int(answer[0]) == waycou:
+                #            text += '\nOptimal'
                 
-                if ways != -1:
-                    #creategif(mp,robotpos,goalpos,mainrobot,imgname,baseimgname,curans)
-                    #try:
-                    #    mediaresp = api.media_upload(filename='2019-04-15 00-36-38.mp4')
-                    #    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True, media_ids=[mediaresp['media_id']])
-                    #except:
-                    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+                #if ways != -1:
+                #    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
 
-                    if int(answer[0]) == waycou:
-                        winproc(userdata, stat, problemname)
+                #    if int(answer[0]) == waycou:
+                #        winproc(userdata, stat, problemname)
                         
-                        api.update_status('Finished.\nWinner '+decoratename('@'+stat.user.screen_name, stat.user.id_str, userdata) + '\n'+'https://twitter.com/'+stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
-                        return
+                #        api.update_status('Finished.\nWinner ' + decoratename('@' + stat.user.screen_name, stat.user.id_str, userdata) + '\n' + 'https://twitter.com/' + stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                #        return
                 
-                else:
-                    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+                #else:
+                #    api.update_status(text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
                 
 
         if datetime.now() >= timelimit:
             text = 'Timeup.\n'
             if curshorteststat != None:
                 winproc(userdata, curshorteststat, problemname)
-                text += 'Winner ' + decoratename('@'+curshorteststat.user.screen_name, curshorteststat.user.id_str, userdata) + '\n'+'https://twitter.com/'+curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
+                text += '🎉Winner ' + decoratename('@' + curshorteststat.user.screen_name, curshorteststat.user.id_str, userdata) + '\n' + 'https://twitter.com/' + curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
             
-            text += 'Answer:'+assumed_solution
-            api.update_status(text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+            text += 'Answer:' + assumed_solution
+            absolutedofunc( api.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+            
+            gifurl = creategif(problemname, parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
+            if gifurl != None:
+                absolutedofunc(api.update_status,'gif\n'+gifurl['link'], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                                
             return
+
+        time.sleep(1)
 
     return
 
-def sleepwithlisten(sec, userdata, roundstart = -1):
+def sleepwithlisten(sec, userdata, roundstart=-1):
     starttime = datetime.now()
     while (datetime.now() - starttime).total_seconds() < sec:
         mentions = getmentions()
         
         for stat in mentions:
             commandproc(userdata, stat, roundstart)
-
+        time.sleep(1)
     return
 
 
@@ -370,7 +469,6 @@ redirect_url = auth.get_authorization_url()
 #verifier = input('Type the verification code: ').strip()
 
 #auth.get_access_token(verifier)
-
 print('input mode = [test:0, real:1]')
 
 if int(input()) == 0:
@@ -383,7 +481,7 @@ else:
 
 auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
 
-api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify = True)
+api = tweepy.API(auth, wait_on_rate_limit=True)
 
 print('Done!')
 
@@ -400,7 +498,7 @@ with open('userdata.json') as f:
 
 roundstart = -1
 timelimit = -1
-roundname = str(datetime.now().year)+ str(datetime.now().month)+ str(datetime.now().day)+ str(datetime.now().hour)
+roundname = str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour)
 
 with open('rounds.json') as f:
     rounds = json.load(f)
@@ -412,7 +510,7 @@ if roundname in rounds.keys():
 while True:
     
     if roundstart == -1:
-        api.update_status('Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
+        absolutedofunc(api.update_status,'Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
 
     curproblemid, problemname = tweetnewproblem()
 
@@ -439,5 +537,5 @@ while True:
         
             sleepwithlisten(600, userdata)
         else:
-            sleepwithlisten(20, userdata, roundstart)
 
+            sleepwithlisten(20, userdata, roundstart)

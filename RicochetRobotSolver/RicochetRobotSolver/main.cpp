@@ -332,27 +332,6 @@ public:
 
 	}
 
-	inline int Greedy(vector<pii>& robots, int idx, pii to) {
-		int frp = PNUM(robots[idx]), top = PNUM(to);
-		for (auto itr : block[frp][top]) {
-			if (itr->root == frp) {
-				Node<pii>* cur = itr;
-				while (cur->p != NULL) {
-					bool ok = false;
-					REP(i, robots.size()) {
-						if (robots[i] == cur->v) {
-							ok = true;
-							break;
-						}
-					}
-					if (ok == false) return INT_MAX / 2;
-					cur = cur->p;
-				}
-			}
-		}
-
-		return dist[frp][top];
-	}
 	bool nxr[Height + 2][Width + 2] = {};
 	inline int Estimate(vector<pii>& robots, int idx, pii to, int level) {
 		int frp = PNUM(robots[idx]), top = PNUM(to);

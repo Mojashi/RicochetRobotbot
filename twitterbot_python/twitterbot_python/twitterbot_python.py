@@ -67,7 +67,7 @@ if roundname in rounds.keys():
 while True:
     
     if roundstart == None:
-        mode = ['Time-Limited', 'Wanko-Soba'][random.randint(0,1)]
+        mode = ['Time-Limited', 'Wanko-Soba'][datetime.now().hour%2]
 
         utils.absolutedofunc(api.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
         
@@ -100,6 +100,8 @@ while True:
     if mode == 'Time-Limited':
         timelimitround.startround(api, dmapi, roundstart, timelimit, roundname, dm_rec_id)
 
+
+    roundstart = None
 
     with open('userdata.json') as f:
         userdata = json.load(f)

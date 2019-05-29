@@ -52,9 +52,11 @@ def startround(api, dmapi, roundstart, timelimit, roundname, dm_rec_id):
 def tweetproblemresult(api, userdata, curproblemid, problemname, user_got_score):
     
     text = "Problem " + str(problemname) + " Result:\n"
+    
+    sortedscore = sorted(user_got_score.items(), key=lambda x:x[1],reverse=True)
 
-    for po in user_got_score.items():
-        text += userdata[po[0]]['screen_name'] + ' ' + str(po[1]) + ' pt\n'
+    for po in sortedscore:
+        text += utils.decoratename(userdata[po[0]]['screen_name'], po[0], userdata) + ' +' + str(po[1]) + 'pt → ' + str(userdata[po[0]]['roundscore']) + 'pt\n'
 
     utils.tweetlongtext(api, status = text, in_reply_to_status_id = curproblemid)
     
@@ -128,8 +130,7 @@ def checksubmissions(api, dmapi, start_timestamp, curproblemid, problemname, dm_
         if ways != -1:
             waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
             if waycou != -1:
-                point = int(100 * math.pow(0.5, waycou - (len(answer) - 2)))
-
+                point = max(1, int(100 * math.pow(0.5, waycou - (len(answer) - 2))))
 
                 user_got_score[user_id_str] = max(point , user_got_score[user_id_str])
 
@@ -168,7 +169,8 @@ def maincycle(api, dmapi, timelimit, roundstart, curproblemid, problemname, dm_r
     problemstart_timestamp = dmapi.send_dm(api.get_user(screen_name = 'oreha_senpai').id, 'problem started')
 
 
-    utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), userdata, roundstart)
+    #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), userdata, roundstart)
+    utils.sleepwithlisten(api, 5 * 60, userdata, roundstart)
     
     checksubmissions(api, dmapi, problemstart_timestamp, curproblemid, problemname, dm_rec_id)
     

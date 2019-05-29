@@ -87,9 +87,6 @@ def solve(mp, goalpos, robotpos, mainrobot):
 
     return outdata
 
-
-
-
 def rngboard():
     mp = [[[0 for k in range(4)] for i in range(16)] for j in range(16)]
     
@@ -124,7 +121,7 @@ def rngboard():
     return mp
 
 
-def ProblemGenerate(fname):
+def ProblemGenerate(fname, lowerbound):
     
     #while True:
     #    [y,x,d] = raw_input().split(' ')
@@ -149,7 +146,7 @@ def ProblemGenerate(fname):
        
         try:
             answer = solve(mp,goalpos, robotpos,mainrobot)
-            if int(answer.decode('utf-8').split('\n')[0]) <= 5:
+            if int(answer.decode('utf-8').split('\n')[0]) <= lowerbound:
                 print("too short")
                 continue
             break;

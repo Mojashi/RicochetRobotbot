@@ -15,7 +15,7 @@ from imgurpython import ImgurClient
 import directmessage
 
 
-def absolutedofunc(func,*args, **kwargs):
+def absolutedofunc(func, *args, **kwargs):
     while True:
         try:
             ret = func(*args, **kwargs)
@@ -23,8 +23,10 @@ def absolutedofunc(func,*args, **kwargs):
         except:
             er = sys.exc_info()
             print(er)
+      
             if er[1].api_code == 187:
                 return
+
             time.sleep(60)
     return
 
@@ -134,7 +136,7 @@ def creategif(problemname, ans):
 def tweethourlyranking(api, userdata, fr, basetext="", reply_id=None):
     text = basetext + "Round Ranking:\n"
     
-    sorteduser = sorted(userdata.items(), key=lambda x:sum(int(gm) >= fr for gm in x[1]['winhistory']),reverse=True)
+    sorteduser = sorted(userdata.items(), key=lambda x:x[1]['roundscore'],reverse=True)
     realrank = 1
     buf = -1
     cou = 0
@@ -143,11 +145,11 @@ def tweethourlyranking(api, userdata, fr, basetext="", reply_id=None):
         if sum(int(gm) >= fr for gm in usr['history']) == 0:
             continue
 
-        winc = sum(int(gm) >= fr for gm in usr['winhistory'])
-        if winc != buf:
+        score = usr['roundscore']
+        if score != buf:
             realrank = cou + 1
-        text += str(realrank) + '. ' + decoratename(usr['screen_name'], sorteduser[i][0], userdata) + ' ' + str(winc) + 'win\n'
-        buf = winc
+        text += str(realrank) + '. ' + decoratename(usr['screen_name'], sorteduser[i][0], userdata) + ' ' + str(score) + 'pt\n'
+        buf = score
         if cou == 9:
             break
         cou += 1
@@ -180,6 +182,7 @@ def setdefaultuser(userdata, usr_id_str, usr_name=''):
     userdata[usr_id_str].setdefault('history', [])
     userdata[usr_id_str].setdefault('winhistory', [])
     userdata[usr_id_str].setdefault('keyconfig', {'u':0,'r':1,'d':2,'l':3})
+    userdata[usr_id_str].setdefault('roundscore', 0)
 
    
 
@@ -305,6 +308,8 @@ def winproc(userdata, stat, problemname):
     userdata[stat.user.id_str]['wincount']+=1
     userdata[stat.user.id_str]['winhistory'].append(problemname)
 
+    userdata[stat.user.id_str]['roundscore'] += 1
+
     sorteduser = sorted(userdata.items(), key=lambda x:x[1]['wincount'],reverse=True)
 
     realrank = 1
@@ -330,3 +335,19 @@ def sleepwithlisten(api, sec, userdata, roundstart=-1):
             commandproc(api, userdata, stat, roundstart)
         time.sleep(1)
     return
+
+def tweetlongtext(api, **kwargs):
+    text = kwargs['status']
+    beforestat = None
+    cursor = 0
+    while cursor < len(text):
+        nexcursor = min(cursor + 280, len(text))
+        curtext = text[cursor:nexcursor]
+        cursor = nexcursor
+        
+        if beforestat != None:
+            kwargs['in_reply_to_status_id'] = beforestat.id
+
+        beforestat = absolutedofunc(api.update_status, **kwargs)
+
+    return beforestat

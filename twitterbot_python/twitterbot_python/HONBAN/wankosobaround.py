@@ -18,7 +18,7 @@ def tweetnewproblem(api):
     with open('history.json','r') as f:
         history = json.load(f)
 
-    ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1))
+    ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 5)
     
     stat = utils.absolutedofunc(api.update_with_media, filename='problems/' + str(len(history) + 1) + '.png', status="Problem number:" + str(len(history) + 1))
 
@@ -29,8 +29,26 @@ def tweetnewproblem(api):
 
     return stat.id, str(len(history))
 
+def startround(api, dmapi, roundstart, timelimit, roundname):
 
-def wankoround(api, timelimit, roundstart, curproblemid, problemname):
+    while True:
+        curproblemid, problemname = tweetnewproblem(api)
+
+        maincycle(api, timelimit, roundstart, curproblemid, problemname)
+        
+        with open('userdata.json') as f:
+            userdata = json.load(f)
+            if datetime.now() >= timelimit:
+            
+                utils.tweetoverallranking(api, userdata, reply_id = utils.tweethourlyranking(api, userdata, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
+                roundstart = None
+
+                return
+            else:
+                utils.sleepwithlisten(api,20, userdata, roundstart)
+
+
+def maincycle(api, timelimit, roundstart, curproblemid, problemname):
     curshortest = 10000000
     curshorteststat = None
     
@@ -69,6 +87,8 @@ def wankoround(api, timelimit, roundstart, curproblemid, problemname):
 
                 if problemname not in userdata[stat.user.id_str]['history']:
                     userdata[stat.user.id_str]['history'].append(problemname)
+                    with open('userdata.json', 'w') as f:
+                        json.dump(userdata, f)
 
                 ways = utils.parsetext(stat.text, userdata[stat.user.id_str]['keyconfig'])
 

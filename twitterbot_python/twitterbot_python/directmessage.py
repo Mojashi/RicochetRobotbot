@@ -11,7 +11,7 @@ class DirectMessanger:
         self.twitter = OAuth1Session(consumer_key, consumer_secret, access_token, access_token_secret)
         self.headers = {"content-type": "application/json"}
 
-    def receive_dm(self, since_timestamp = -1, count = 20):
+    def receive_dm(self, since_timestamp = -1, until_timestamp = -1, count = 20000000):
         url = "https://api.twitter.com/1.1/direct_messages/events/list.json?count=50"
         cursor = -1
         msgs = []
@@ -25,7 +25,9 @@ class DirectMessanger:
             jsn = json.loads(ret_json.text)
 
             if ret_json.status_code != 200:
-                raise self.BadRequest()
+                print('dm send error')
+                sleep(600)
+                continue
             
             if 'next_cursor' not in jsn.keys():
                 jsn['next_cursor'] = 0
@@ -36,7 +38,11 @@ class DirectMessanger:
                 break
 
             for msg in jsn['events']:
-                if int(msg['created_timestamp']) <= since_timestamp or len(msgs) >= count:
+                if int(msg['created_timestamp']) >= int(until_timestamp):
+                    continue
+
+                if int(msg['created_timestamp']) <= int(since_timestamp) or len(msgs) >= count:
+                    cursor = 0
                     break
                 msgs.append(msg)
             
@@ -51,4 +57,4 @@ class DirectMessanger:
                 raise self.BadRequest()
 
         jsn = json.loads(ret.text)
-        return jsn['event']['id']
+        return jsn['event']['created_timestamp']

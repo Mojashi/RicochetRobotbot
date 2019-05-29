@@ -1,0 +1,18 @@
+﻿{
+  "Grand Master": {
+    "range": [ 1, 1 ],
+    "deco": "👑 %user"
+  },
+  "Master": {
+    "range": [ 2, 3 ],
+    "deco": "🏅 %user"
+  },
+  "Guru": {
+    "range": [ 4, 6 ],
+    "deco": "🌟 %user"
+  },
+  "Specialist": {
+    "range": [ 7, 10 ],
+    "deco": "✨ %user"
+  }
+}

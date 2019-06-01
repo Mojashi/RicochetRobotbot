@@ -1,6 +1,6 @@
 import tweepy
 import time
-
+from msvcrt import getch
 import traceback
 import json
 import sys
@@ -27,7 +27,12 @@ def absolutedofunc(func, *args, **kwargs):
             if er[1].api_code == 187:
                 return
 
-            time.sleep(60)
+
+            for i in range(0, 60):
+                if ord(getch()) == 48:
+                    return
+
+                time.sleep(1)
     return
 
 def decoratename(username, userid_str, userdata):
@@ -82,7 +87,7 @@ def checkanswer(mp, robotpos, goalpos, mainrobot, ans):
     return len(ans)
 
 
-def creategif(problemname, ans):
+def creategif(dmapi, problemname, ans):
     Dir = [[0,-1],[1,0],[0,1],[-1,0]]
     with open('problems/' + problemname + '.json') as f:
         cdict = json.load(f)
@@ -125,11 +130,13 @@ def creategif(problemname, ans):
         curpos[num] = [int(curpos[num][0]),int(curpos[num][1])]
 
     imgs[0].save('buf.gif',save_all = True, append_images=imgs[1:], optimize=True,duration=70, loop = 0)
+    
+
     try:
-        client = ImgurClient('756d458eceab39c', '0495cbf4706ec27591a48193c08fff6b630e9634')
-        return client.upload_from_path('buf.gif')
+        return dmapi.uploadmedia('buf.gif')
     except:
-        print("gif upload except")
+        er = sys.exc_info()
+        print(er)
         return None
     return None
 
@@ -186,7 +193,7 @@ def setdefaultuser(userdata, usr_id_str, usr_name=''):
 
    
 
-def commandproc(api, userdata, stat, fr=-1):
+def commandproc(api, dmapi, userdata, stat, fr=-1):
     args = stat.text.split()
     while args[0][0] == '@':
         args.pop(0)
@@ -245,15 +252,15 @@ def commandproc(api, userdata, stat, fr=-1):
 
     elif args[0] == '!gif':
         rpd = api.get_status(stat.in_reply_to_status_id)
-        gifurl = None
+        gifid = None
 
         with open('gifs.json','r') as f:
             algif = json.load(f)
             if rpd.id_str in algif.keys():
-                gifurl = algif[rpd.id_str]
+                gifid = algif[rpd.id_str]
 
         print("gif")
-        if gifurl == None:
+        if gifid == None:
             setdefaultuser(userdata,rpd.user.id_str, rpd.user.screen_name)
             ans = parsetext(rpd.text, userdata[rpd.user.id_str]['keyconfig'])
             if ans != -1:
@@ -261,14 +268,14 @@ def commandproc(api, userdata, stat, fr=-1):
                     history = json.load(f)
                     probnamelis = [k for k, v in history.items() if v == rpd.in_reply_to_status_id]
                     if len(probnamelis) > 0:
-                        gifurl = creategif(probnamelis[0], ans)
-                        algif[rpd.id_str] = gifurl
+                        gifid = creategif(dmapi, probnamelis[0], ans)
+                        algif[rpd.id_str] = gifid
 
                         with open('gifs.json','w') as f:
                              json.dump(algif, f)
     
-        if gifurl != None:
-            absolutedofunc(api.update_status,gifurl['link'], in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+        if gifid != None:
+            absolutedofunc(api.update_status,'gif', media_ids = [gifid],in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
 
     return
 
@@ -326,13 +333,13 @@ def winproc(userdata, stat, problemname):
     return
 
 
-def sleepwithlisten(api, sec, userdata, roundstart=-1):
+def sleepwithlisten(api, dmapi,sec, userdata, roundstart=-1):
     starttime = datetime.now()
     while (datetime.now() - starttime).total_seconds() < sec:
         mentions = getmentions(api)
         
         for stat in mentions:
-            commandproc(api, userdata, stat, roundstart)
+            commandproc(api, dmapi,userdata, stat, roundstart)
         time.sleep(1)
     return
 
@@ -343,11 +350,13 @@ def tweetlongtext(api, **kwargs):
     while cursor < len(text):
         nexcursor = min(cursor + 280, len(text))
         curtext = text[cursor:nexcursor]
+        print(curtext)
         cursor = nexcursor
         
         if beforestat != None:
             kwargs['in_reply_to_status_id'] = beforestat.id
 
+        kwargs['status'] = curtext
         beforestat = absolutedofunc(api.update_status, **kwargs)
 
     return beforestat

@@ -24,6 +24,12 @@
     <Compile Include="directmessage.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="largemediauploader.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="module1.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="ProblemGenerator.py" />
     <Compile Include="timelimitround.py">
       <SubType>Code</SubType>

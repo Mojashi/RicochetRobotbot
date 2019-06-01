@@ -49,7 +49,7 @@ roundrange = [5,55]
 with open('userdata.json') as f:
     userdata = json.load(f)
     while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
-        utils.sleepwithlisten(api,1, userdata)
+        utils.sleepwithlisten(api,dmapi, 1, userdata)
 
 roundstart = None
 timelimit = None
@@ -105,5 +105,5 @@ while True:
 
     with open('userdata.json') as f:
         userdata = json.load(f)
-        utils.sleepwithlisten(api,600, userdata)
+        utils.sleepwithlisten(api,dmapi,600, userdata)
         

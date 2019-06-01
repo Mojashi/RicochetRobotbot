@@ -47,7 +47,7 @@ def startround(api, dmapi, roundstart, timelimit, roundname, dm_rec_id):
 
                 return
             else:
-                utils.sleepwithlisten(api,5, userdata, roundstart)
+                utils.sleepwithlisten(api,dmapi, 5, userdata, roundstart)
 
 def tweetproblemresult(api, userdata, curproblemid, problemname, user_got_score):
     
@@ -90,15 +90,14 @@ def checksubmissions(api, dmapi, start_timestamp, curproblemid, problemname, dm_
     text += 'Answer:' + assumed_solution
     utils.absolutedofunc( api.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
     
-    gifurl = utils.creategif(problemname, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
-    if gifurl != None:
-        utils.absolutedofunc(api.update_status,'gif\n'+gifurl['link'], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+    gifid = utils.creategif(dmapi, problemname, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
+
+    if gifid != None:
+        utils.absolutedofunc(api.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
     
-    
-    utils.sleepwithlisten(api,30, userdata)
+    utils.sleepwithlisten(api,dmapi,30, userdata)
     msgs = dmapi.receive_dm(since_timestamp = start_timestamp, until_timestamp=problemend_timestamp)
     
-
     user_got_score = {}
 
     for msg in msgs:
@@ -170,7 +169,7 @@ def maincycle(api, dmapi, timelimit, roundstart, curproblemid, problemname, dm_r
 
 
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), userdata, roundstart)
-    utils.sleepwithlisten(api, 5 * 60, userdata, roundstart)
+    utils.sleepwithlisten(api,dmapi, 5 * 60, userdata, roundstart)
     
     checksubmissions(api, dmapi, problemstart_timestamp, curproblemid, problemname, dm_rec_id)
     

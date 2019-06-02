@@ -1,6 +1,6 @@
 import tweepy
 import time
-from msvcrt import getch
+import msvcrt
 import traceback
 import json
 import sys
@@ -13,7 +13,6 @@ from datetime import datetime
 from imgurpython import ImgurClient
 
 import directmessage
-
 
 def absolutedofunc(func, *args, **kwargs):
     while True:
@@ -29,7 +28,7 @@ def absolutedofunc(func, *args, **kwargs):
 
 
             for i in range(0, 60):
-                if ord(getch()) == 48:
+                if msvcrt.kbhit():
                     return
 
                 time.sleep(1)
@@ -348,7 +347,7 @@ def tweetlongtext(api, **kwargs):
     beforestat = None
     cursor = 0
     while cursor < len(text):
-        nexcursor = min(cursor + 280, len(text))
+        nexcursor = min(cursor + 200, len(text))
         curtext = text[cursor:nexcursor]
         print(curtext)
         cursor = nexcursor

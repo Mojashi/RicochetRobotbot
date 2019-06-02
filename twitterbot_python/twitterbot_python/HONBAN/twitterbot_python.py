@@ -44,7 +44,7 @@ utils.getmentions.lastgettime = datetime(2000,10,1,0,0,0,0)
 utils.getmentions.lastid = api.mentions_timeline(count=1)[0].id
 
 
-roundrange = [5,55]
+roundrange = [2,58]
 
 with open('userdata.json') as f:
     userdata = json.load(f)
@@ -102,8 +102,10 @@ while True:
 
 
     roundstart = None
+    
 
     with open('userdata.json') as f:
         userdata = json.load(f)
-        utils.sleepwithlisten(api,dmapi,600, userdata)
+        while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
+            utils.sleepwithlisten(api,dmapi, 10, userdata)
         

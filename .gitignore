@@ -243,3 +243,5 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+
+/twitterbot_python/twitterbot_python/HONBAN/

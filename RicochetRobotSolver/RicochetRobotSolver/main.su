@@ -1,0 +1,14 @@
+main.cpp:100:1:void __tcf_5()	64	static
+main.cpp:99:14:void __tcf_4()	64	static
+iostream:74:25:void __tcf_3()	8	static
+basic_string.h:454:7:std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::basic_string(const _CharT*, const _Alloc&) [with _CharT = char; _Traits = std::char_traits<char>; _Alloc = std::allocator<char>]	96	static
+stl_deque.h:679:5:void std::_Deque_base<_Tp, _Alloc>::_M_initialize_map(std::size_t) [with _Tp = std::pair<std::pair<int, int>, int>; _Alloc = std::allocator<std::pair<std::pair<int, int>, int> >]	64	static
+stdio.h:305:5:)	64	static
+stdio.h:238:5:)	64	static
+main.cpp:541:71:void __tcf_0()	64	static
+main.cpp:542:39:void __tcf_2()	48	static
+main.cpp:542:33:void __tcf_1()	48	static
+stl_tree.h:2168:7:) [with _Args = {const std::piecewise_construct_t&, std::tuple<const int&>, std::tuple<>}; _Key = int; _Val = std::pair<const int, int>; _KeyOfValue = std::_Select1st<std::pair<const int, int> >; _Compare = std::less<int>; _Alloc = std::allocator<std::pair<const int, int> >]	112	static
+main.cpp:106:5:int count32bit(unsigned int)	8	static
+main.cpp:144:7:void Board::Scan()	256	static
+stl_pair.h:147:12:std::pair<std::vector<std::pair<int, std::pair<int, int> > >, std::vector<std::pair<int, int> > >::~pair()	48	static

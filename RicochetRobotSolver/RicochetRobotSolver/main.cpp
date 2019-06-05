@@ -131,13 +131,14 @@ inline int LSB32bit(unsigned v) {
 
 int statecou = 0;
 struct Board {
-	static const int Width = 16, Height = 16;
+	static const int Width = 16, Height = 16, Robotnum = 5, Mainrobot = 0;
 	Tile field[Height][Width];
 	unsigned int vwalls[Width] = {}, hwalls[Height] = {};
 	unsigned int mask[2][17] = {}, MSB[1 << 17], LSB[1 << 17];
 	bool nxw[Height][Width] = {};
 #define PNUM(a) (a.first * Width + a.second)
 #define PtoD(x) ((x.first + 3*x.first + x.second + 4*x.second)%4)
+#define ValidPos(p) (p.first >= 0 && p.first < Height && p.second >= 0 && p.second < Width)
 public:
 
 	void Scan() {
@@ -286,47 +287,42 @@ public:
 	};
 
 	int dist[256][256] = {}, distdir[256][256][4] = {};
-	vector<Node<pii>*> block[256][256];
+	//vector<Node<pii>*> block[256][256];
 
 	void Calcdist() {
-		Fill(dist, -1);
+		Fill(dist, INT_MAX / 10);
+		Fill(distdir, INT_MAX / 10);
+
 		REP(st, 256) {
-			queue<pair<Node<pii>*, pii>> que;
-			que.push({ new Node<pii>(st), { 0,st} });
+			queue<pair<pii, int>> que;
+			que.push({ { 0,st}, 0 });
+			que.push({ { 0,st}, 1 });
+			que.push({ { 0,st}, 2 });
+			que.push({ { 0,st}, 3 });
 
 			while (que.size()) {
 				auto cur = que.front();
 				que.pop();
 
-				if (dist[st][cur.second.second] == -1 || dist[st][cur.second.second] == cur.second.first)
-					block[st][cur.second.second].push_back(cur.first);
-				if (dist[st][cur.second.second] != -1)	continue;
+				if (distdir[st][cur.first.second][cur.second] != INT_MAX / 10)	continue;
 
-				dist[st][cur.second.second] = cur.second.first;
+				distdir[st][cur.first.second][cur.second] = cur.first.first;
+
 				REP(i, 4) {
-					pii pos = { cur.second.second / Width, cur.second.second % Width };
+					pii pos = { cur.first.second / Width, cur.first.second % Width };
 					while (field[pos.first][pos.second].wall[i] == false) {
 						pos = MP(pos.first + Dir[i].first, pos.second + Dir[i].second);
 						int nex = PNUM(pos);
-						//if (dist[st][nex] == -1) {
-						Node<pii>* nxn = cur.first;
-						if ((field[pos.first][pos.second].wall[i] == false)) {
-							cur.first->nx.push_back(nxn = new Node<pii>(cur.first, MP(pos.first + Dir[i].first, pos.second + Dir[i].second)));
-						}
-						que.push({ nxn,{ cur.second.first + 1, nex } });
-						//}
+
+						que.push({ { cur.first.first + 1, nex }, i });
 					}
 				}
 			}
 		}
-		Fill(distdir, INT_MAX / 10);
-		REP(i, 256) {
-			REP(j, 256) {
-				REP(k, 4) {
-					pii fr = { j / Width + Dir[k].first, j%Width + Dir[k].second };
-					if (fr.first >= 0 && fr.second >= 0 && fr.first < Height && fr.second < Width)
-						distdir[i][j][k] = 1 + dist[i][PNUM(fr)];
-				}
+
+		REP(st, 256) {
+			REP(en, 256) {
+				dist[st][en] = min({distdir[st][en][0],distdir[st][en][1] ,distdir[st][en][2] ,distdir[st][en][3] });
 			}
 		}
 
@@ -362,6 +358,9 @@ public:
 			REP(i, 4) {
 
 				pii nex = { to.first + Dir[i].first, to.second + Dir[i].second };
+
+				if (!ValidPos(nex))
+					continue;
 
 				int Mindist = INT_MAX;
 				REP(j, robots.size()) {
@@ -438,7 +437,9 @@ public:
 			return ret;
 		}
 		else if (level == 3) {
-			if (nxw[to.first][to.second]) return dist[frp][top];
+			if (nxw[to.first][to.second]) {
+				return dist[frp][top];
+			}
 
 			for (auto itr : robots) {
 				REP(i, 4) {
@@ -454,70 +455,75 @@ public:
 				return dist[frp][top];
 			}
 
-			pii secp[9] = { to, {to.first + 2, to.second + 0} , {to.first + 1, to.second + 1} , {to.first + 0, to.second + 2} , {to.first - 1, to.second + 1} ,
-			 {to.first + 0, to.second - 2} ,  {to.first + 1, to.second - 1} ,  {to.first + 0, to.second - 2} ,  {to.first - 1, to.second - 1} };
+			pii secp[9] = { 
+			{to.first - 1, to.second - 1} ,
+			{to.first - 2, to.second + 0} ,
+			{to.first - 1, to.second + 1} ,
+			{to.first + 0, to.second + 2} ,
+			{to.first + 1, to.second + 1} ,
+			{to.first + 2, to.second + 0} ,
+			{to.first + 1, to.second - 1} ,
+			{to.first + 0, to.second - 2} ,
+			to
+			};
 
+
+			int secpd[9][Robotnum] = {};
+			Fill(secpd, INT_MAX / 2);
 			int ret = INT_MAX;
 
 			REP(i, 9) {
-				int isnxw = 1 - (nxw[secp[i].first][secp[i].second] | nxr[secp[i].first + 1][secp[i].second + 1]);
-				int Mindist2[5] = { INT_MAX,INT_MAX,INT_MAX,INT_MAX,INT_MAX };
-				pii sa = { secp[i].first - to.first, secp[i].second - to.second };
-				REP(j, robots.size()) {
-					// (j == idx) * (2 + ((secp[i].first - to.first) == 2 || (secp[i].second - to.second) == 2)) + 
-					if (j == idx) continue;
-					int dis = dist[PNUM(robots[j])][PNUM(secp[i])] + isnxw * (1 - (secp[i] == robots[j]));
-					chmin(Mindist2[0], (j == 0) * INT_MAX / 2 + dis);
-					chmin(Mindist2[1], (j == 1) * INT_MAX / 2 + dis);
-					chmin(Mindist2[2], (j == 2) * INT_MAX / 2 + dis);
-					chmin(Mindist2[3], (j == 3) * INT_MAX / 2 + dis);
-					chmin(Mindist2[4], (j == 4) * INT_MAX / 2 + dis);
-				}
-				if (secp[i] == to) {
-					REP(j, 4) {
-						int opd = OPP(j);
-						REP(k, robots.size()) {
-							if (k == idx) continue;
-							chmin(ret, 1 + distdir[frp][top][opd] + Mindist2[k] + distdir[PNUM(robots[k])][PNUM(MP(to.first + Dir[j].first, to.second + Dir[j].second))][j]);
-						}
-					}
-				}
-				else {
+				if (!ValidPos(secp[i]))
+					continue;
 
-					if (secp[i].first > to.first) {
-						int opd = OPP(PtoD(MP(sa.first - 1, sa.second))), poid = 2 + (secp[i].first - to.first == 2);
-						REP(j, robots.size()) {
-							if (j == idx) continue;
-							chmin(ret, distdir[frp][top][opd] + Mindist2[j] + distdir[PNUM(robots[j])][PNUM(secp[i]) - Width][0]);
-							chmin(ret, poid + distdir[frp][top][opd] + dist[PNUM(robots[idx])][PNUM(secp[i])] + isnxw + distdir[PNUM(robots[j])][PNUM(secp[i]) - Width][0]);
-						}
-					}
-					else if (secp[i].first < to.first) {
-						int opd = OPP(PtoD(MP(sa.first + 1, sa.second))), poid = 2 + (to.first - secp[i].first == 2);
-						REP(j, robots.size()) {
-							if (j == idx) continue;
-							chmin(ret, distdir[frp][top][opd] + Mindist2[j] + distdir[PNUM(robots[j])][PNUM(secp[i]) + Width][2]);
-							chmin(ret, poid + distdir[frp][top][opd] + dist[PNUM(robots[idx])][PNUM(secp[i])] + isnxw + distdir[PNUM(robots[j])][PNUM(secp[i]) + Width][2]);
-						}
-					}
-					if (secp[i].second > to.second) {
-						int opd = OPP(PtoD(MP(sa.first, sa.second - 1))), poid = 2 + (secp[i].second - to.second == 2);
-						REP(j, robots.size()) {
-							if (j == idx) continue;
-							chmin(ret, distdir[frp][top][opd] + Mindist2[j] + distdir[PNUM(robots[j])][PNUM(secp[i]) - 1][3]);
-							chmin(ret, poid + distdir[frp][top][opd] + dist[PNUM(robots[idx])][PNUM(secp[i])] + isnxw + distdir[PNUM(robots[j])][PNUM(secp[i]) - 1][3]);
-						}
-					}
-					else if (secp[i].second < to.second) {
-						int opd = OPP(PtoD(MP(sa.first, sa.second + 1))), poid = 2 + (to.second - secp[i].second == 2);
-						REP(j, robots.size()) {
-							if (j == idx) continue;
-							chmin(ret, distdir[frp][top][opd] + Mindist2[j] + distdir[PNUM(robots[j])][PNUM(secp[i]) + 1][1]);
-							chmin(ret, poid + distdir[frp][top][opd] + dist[PNUM(robots[idx])][PNUM(secp[i])] + isnxw + distdir[PNUM(robots[j])][PNUM(secp[i]) + 1][1]);
-						}
+				int tap = PNUM(secp[i]);
+
+				REP(j, Robotnum) {
+					//int isair = (1 - (nxw[secp[i].first][secp[i].second] | nxr[secp[i].first + 1][secp[i].second + 1]) * (1 - (robots[j] == secp[i])));
+					if (j == 0) 
+						chmin(secpd[i][0], dist[frp][tap]);
+					else {
+						chmin(secpd[i][1], (j == 1) * INT_MAX / 2 + dist[PNUM(robots[j])][tap]);
+						chmin(secpd[i][2], (j == 2) * INT_MAX / 2 + dist[PNUM(robots[j])][tap]);
+						chmin(secpd[i][3], (j == 3) * INT_MAX / 2 + dist[PNUM(robots[j])][tap]);
+						chmin(secpd[i][4], (j == 4) * INT_MAX / 2 + dist[PNUM(robots[j])][tap]);
 					}
 				}
 			}
+
+			REP(i, 4) {
+				pii nxp = MP(to.first + Dir[i].first, to.second + Dir[i].second);
+				if (!ValidPos(nxp))
+					continue;
+
+				int tap = PNUM(nxp);
+				REP(j, 4) {
+					int seep = (i * 2 + j) % 8;
+					int dir = (i - 1 + j + 4) % 4;
+				
+					REP(k, Robotnum) {
+						if (k == Mainrobot) continue;
+						if (PNUM(robots[k]) == tap) {
+							chmin(ret, distdir[frp][top][i]);
+						}
+						else {
+							int zmv = (j == 3) * 0 + (j == 1) * 3 + 2;
+
+							if (field[nxp.first][nxp.second].wall[dir]) {
+								chmin(ret, distdir[PNUM(robots[k])][tap][dir] + distdir[frp][top][i]);
+								chmin(ret, distdir[PNUM(robots[k])][tap][dir] + zmv);
+							}
+							else {
+								chmin(ret, secpd[seep][k] + distdir[PNUM(robots[k])][tap][dir] + distdir[frp][top][i]);//最初に0とkいがいをしよう
+								chmin(ret, secpd[seep][0] + distdir[PNUM(robots[k])][tap][dir] + zmv);//最初に0をしよう
+							}
+						}
+					}
+
+
+				}
+			}
+
 			for (auto itr : robots) {
 				REP(i, 4) {
 					nxr[itr.first + Dir[i].first + 1][itr.second + Dir[i].second + 1] = 0;
@@ -526,56 +532,7 @@ public:
 			if (ret == INT_MAX) cout << "E" << endl;
 			return ret;
 		}
-		else if (level == 4) {
-			int penalty = INT_MAX;
-			for (auto itr : block[frp][top]) {
-				if (itr->root == frp) {
-					Node<pii>* cur = itr;
-					int curp = 0;
-					while (cur->p != NULL) {
-						curp++;
-						REP(i, robots.size()) {
-							if (robots[i] == cur->v) {
-								curp--;
-								break;
-							}
-						}
-						cur = cur->p;
-					}
-					chmin(penalty, curp);
-				}
-			}
-			_ASSERTE(penalty != INT_MAX);
-			//c1++;sum1 += dist[frp][top] + penalty;
-			return dist[frp][top] + penalty;
-		}
-		else if (level == 5) {
-			int penalty = INT_MAX;
-			for (auto itr : block[frp][top]) {
-				pii walls[10]; int pc = 0;
-				if (itr->root == frp) {
-					Node<pii>* cur = itr;
-					int curp = 0;
-					while (cur->p != NULL) {
-						int Mindist = INT_MAX;
-						REP(i, robots.size()) {
-							chmin(Mindist, dist[PNUM(robots[i])][PNUM(cur->v)]);
-						}
-						REP(i, pc) {
-							chmin(Mindist, dist[PNUM(walls[i])][PNUM(cur->v)]);
-						}
-						walls[pc] = cur->v;
-						pc++;
-						curp += Mindist;
-						cur = cur->p;
-					}
-					chmin(penalty, curp);
-				}
-			}
-			_ASSERTE(penalty != INT_MAX);
-			//c2++; sum2 += dist[frp][top] + penalty;
-			return dist[frp][top] + penalty;
-		}
+
 	}
 	int DFS(vector<pii>& robots, int idx, pii to, vector<pair<int, pii>>& history,
 		int* bound, int mxlv = 0, int br = 0, int depth = 0, bool res = false) {
@@ -614,6 +571,7 @@ public:
 			}
 		}
 		if (mxlv >= 2) {
+			//cout << Estimate(robots, idx, to, 3) << endl;
 			if (depth + (Estimate(robots, idx, to, 3)) >= *bound) {
 				chmax(cant[hash], *bound - depth - 1);
 				return -1;
@@ -690,8 +648,6 @@ public:
 
 	vector<pair<int, pii>> DFSSolve(vector<pii> robots, int idx, pii to, int bound, int mxlv, bool res = true) {
 		swap(robots[idx], robots[0]);
-		if (block[0][0].size() == 0)
-			Calcdist();
 
 		vector<pair<int, pii>> ret;
 		DFS(robots, 0, to, ret, &bound, mxlv, 0, 0, res);
@@ -779,6 +735,7 @@ signed main(void) {
 	Board board;
 
 	board.Scan();
+	board.Calcdist();
 
 	auto start = clock();
 
@@ -793,10 +750,10 @@ signed main(void) {
 	cin >> idx;
 	cin >> goal.first >> goal.second;
 
-	int fbound = 12;
+	int fbound = 15;
 	while (1) {
-		auto sol = board.DFSSolve(robots, idx, goal, fbound, 0, true);
-		fbound++;
+		auto sol = board.DFSSolve(robots, idx, goal, fbound, 1, fbound == 15);
+		fbound+=5;
 		if (sol.size() == 0)continue;
 		cout << sol.size() << endl;
 		for (auto itr : sol) {

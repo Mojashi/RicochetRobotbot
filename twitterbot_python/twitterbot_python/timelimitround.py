@@ -1,6 +1,7 @@
 import tweepy
 import time
 import math
+import pymongo
 
 import json
 import copy
@@ -19,10 +20,10 @@ def tweetnewproblem(api, dm_rec_id):
     with open('history.json','r') as f:
         history = json.load(f)
 
-    ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
+    movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
     
     stat = utils.absolutedofunc(api.update_with_media, filename='problems/' + str(len(history) + 1) + '.png',
-                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(len(history) + 1) + '\nhttps://twitter.com/messages/compose?recipient_id='+str(dm_rec_id))
+                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(len(history) + 1) + "\nOptimal:" +str(movecount) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(dm_rec_id))
 
     history[len(history) + 1] = stat.id
 

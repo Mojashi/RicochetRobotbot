@@ -110,7 +110,7 @@ def rngboard():
     setwall(mp,7,8,3);
 
 
-    elcount = random.randint(24,33)
+    elcount = random.randint(15,33)
 
     for i in range(elcount):
         x = random.randint(0, 15)
@@ -163,6 +163,7 @@ def ProblemGenerate(fname, lowerbound):
     f = open(fname + '.json', 'w')
     json.dump(outdict,f)
     f.close()
+    return int(answer.decode('utf-8').split('\n')[0])
 
 
 if __name__ == '__main__':

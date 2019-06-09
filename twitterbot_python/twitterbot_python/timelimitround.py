@@ -2,8 +2,6 @@ import tweepy
 import time
 import math
 import pymongo
-
-import json
 import copy
 import random
 import ProblemGenerator
@@ -14,96 +12,92 @@ from imgurpython import ImgurClient
 
 import utils
 
+import APIControler
 
-def tweetnewproblem(api, dm_rec_id):
+def tweetnewproblem(ctrls):
     
-    with open('history.json','r') as f:
-        history = json.load(f)
-
-    movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
+    #movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
     
-    stat = utils.absolutedofunc(api.update_with_media, filename='problems/' + str(len(history) + 1) + '.png',
-                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(len(history) + 1) + "\nOptimal:" +str(movecount) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(dm_rec_id))
+    newprob = ctrls.db['problem'].find_one({'used':False})
+    
+    plist = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )
+    if len(plist) == 0:
+        newprob['problem_num'] = 1
+    else:
+        newprob['problem_num'] = [0]['problem_num'] + 1
+    stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'],
+                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(newprob['problem_num']) + "\nOptimal:" +str(movecount) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(ctrls.dm_rec_id))
+    
+    newprob['tweet_id'] = stat.id
+    newprob['used'] = True
+    ctrls.db['problem'].save(newprob)
 
-    history[len(history) + 1] = stat.id
+    return stat.id, newprob['problem_num']
 
-    with open('history.json','w') as f:
-        json.dump(history, f)
-
-    return stat.id, str(len(history))
-
-def startround(api, dmapi, roundstart, timelimit, roundname, dm_rec_id):
+def startround(ctrls, roundstart, timelimit, roundname):
 
     while True:
-        curproblemid, problemname = tweetnewproblem(api, dm_rec_id)
+        curproblemid, problemname = tweetnewproblem(ctrls)
 
-        maincycle(api,dmapi, timelimit, roundstart, curproblemid, problemname, dm_rec_id)
+        maincycle(ctrls, timelimit, roundstart, curproblemid, problemname)
         
-        with open('userdata.json') as f:
-            userdata = json.load(f)
-            if datetime.now() >= timelimit:
-            
-                utils.tweetoverallranking(api, userdata, reply_id = utils.tweethourlyranking(api, userdata, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
-                roundstart = None
+        if datetime.now() >= timelimit:
+        
+            utils.tweetoverallranking(ctrls, reply_id = utils.tweethourlyranking(ctrls, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
+            roundstart = None
 
-                return
-            else:
-                utils.sleepwithlisten(api,dmapi, 5, userdata, roundstart)
+            return
+        else:
+            utils.sleepwithlisten(ctrls, 5, roundstart)
 
-def tweetproblemresult(api, userdata, curproblemid, problemname, user_got_score):
+def tweetproblemresult(ctrls, curproblemid, problemname, user_got_score):
     
     text = "Problem " + str(problemname) + " Result:\n"
     
     sortedscore = sorted(user_got_score.items(), key=lambda x:x[1],reverse=True)
 
     for po in sortedscore:
-        text += utils.decoratename(userdata[po[0]]['screen_name'], po[0], userdata) + ' +' + str(po[1]) + 'pt → ' + str(userdata[po[0]]['roundscore']) + 'pt\n'
+        text += utils.decoratename(ctrls, po[0]) + ' +' + str(po[1]) + 'pt → ' + str(ctrls.getuser(po[0])['roundscore']) + 'pt\n'
 
-    utils.tweetlongtext(api, status = text, in_reply_to_status_id = curproblemid)
+    utils.tweetlongtext(ctrls, status = text, in_reply_to_status_id = curproblemid)
     
     return
 
 
-def checksubmissions(api, dmapi, start_timestamp, curproblemid, problemname, dm_rec_id):
+def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
     
-    problemend_timestamp = dmapi.send_dm(api.get_user(screen_name = 'oreha_senpai').id, 'problem ended')
+    problemend_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem ended')
         
-    with open('userdata.json') as f:
-        userdata = json.load(f)
+    cdict = ctrls.db['problem'].find_one({'problem_num' : pproblem_num})
 
-    with open('problems/' + problemname + '.json') as f:
-        cdict = json.load(f)
-        mp = cdict['board']
-        robotpos = cdict['robotpos']
-        goalpos = cdict['goalpos']
-        mainrobot = cdict['mainrobot']
-        answer = cdict['answer']
-        imgname = cdict['img']
-        baseimgname = cdict['baseimg']
-
-    for key in userdata.keys():
-        utils.setdefaultuser(userdata, key)
+    mp = cdict['board']
+    robotpos = cdict['robotpos']
+    goalpos = cdict['goalpos']
+    mainrobot = cdict['mainrobot']
+    answer = cdict['answer']
+    imgname = cdict['img']
+    baseimgname = cdict['baseimg']
 
     assumed_solution = utils.convertans(answer, robotpos)
     
-
     text = 'Timeup.\n'
     text += 'Answer:' + assumed_solution
-    utils.absolutedofunc( api.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+    utils.absolutedofunc( ctrls.twapi.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
     
-    gifid = utils.creategif(dmapi, problemname, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
+    gifid = utils.creategif(ctrls, problemname, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
 
     if gifid != None:
-        utils.absolutedofunc(api.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+        utils.absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
     
-    utils.sleepwithlisten(api,dmapi,30, userdata)
-    msgs = dmapi.receive_dm(since_timestamp = start_timestamp, until_timestamp=problemend_timestamp)
+    utils.sleepwithlisten(ctrls,30)
+    msgs = ctrls.dmapi.receive_dm(since_timestamp = start_timestamp, until_timestamp=problemend_timestamp)
     
     user_got_score = {}
 
+
     for msg in msgs:
 
-        if str(msg['message_create']['sender_id']) == str(dm_rec_id):
+        if str(msg['message_create']['sender_id']) == str(ctrls.dm_rec_id):
             continue
 
         print(msg)
@@ -113,19 +107,19 @@ def checksubmissions(api, dmapi, start_timestamp, curproblemid, problemname, dm_
     
 
         screenname = ""
-        if user_id_str not in userdata:
-            screenname =  utils.absolutedofunc(api.get_user, user_id = int(user_id_str)).screen_name
+        if ctrls.getuser(user_id_str) == None:
+            screenname =  utils.absolutedofunc(ctrls.twapi.get_user, user_id = int(user_id_str)).screen_name
 
-        utils.setdefaultuser(userdata, user_id_str, screenname)
+        utils.setdefaultuser(ctrls, user_id_str, screenname)
 
 
-        if problemname not in userdata[user_id_str]['history']:
-            userdata[user_id_str]['history'].append(problemname)
+        if problemname not in ctrls.getuser(user_id_str)['history']:
+            ctrls.db['user'].update({'user_id':user_id_str}, {'$push' : {'history' : problem_num}})
 
         if user_id_str not in user_got_score.keys():
             user_got_score[user_id_str] = 0
 
-        ways = utils.parsetext(text, userdata[user_id_str]['keyconfig'])
+        ways = utils.parsetext(text, ctrls.getuser(user_id_str)['keyconfig'])
 
         if ways != -1:
             waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
@@ -136,20 +130,14 @@ def checksubmissions(api, dmapi, start_timestamp, curproblemid, problemname, dm_
 
 
     for key in user_got_score.keys():
-        userdata[key]['roundscore'] += user_got_score[key]
+        ctrls.db['user'].update({'user_id':key}, {'rondscore': user_got_score[key] + ctrls.getuser(key)['roundscore']})
         
-    with open('userdata.json', 'w') as f:
-        json.dump(userdata, f)
-        
-    tweetproblemresult(api, userdata, curproblemid, problemname, user_got_score)
+    tweetproblemresult(ctrls, curproblemid, problemname, user_got_score)
 
     return
 
-def maincycle(api, dmapi, timelimit, roundstart, curproblemid, problemname, dm_rec_id):
+def maincycle(ctrls, timelimit, roundstart, curproblemid, problemname):
     
-    with open('userdata.json') as f:
-        userdata = json.load(f)
-
     with open('problems/' + problemname + '.json') as f:
         cdict = json.load(f)
         mp = cdict['board']
@@ -159,19 +147,19 @@ def maincycle(api, dmapi, timelimit, roundstart, curproblemid, problemname, dm_r
         answer = cdict['answer']
         imgname = cdict['img']
         baseimgname = cdict['baseimg']
-
-    for key in userdata.keys():
-        utils.setdefaultuser(userdata, key)
+        
+    if ctrls.getuser(user_id_str) == None:
+        utils.setdefaultuser(ctrls, key)
 
     assumed_solution = utils.convertans(answer, robotpos)
     print(assumed_solution)
 
-    problemstart_timestamp = dmapi.send_dm(api.get_user(screen_name = 'oreha_senpai').id, 'problem started')
+    problemstart_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem started')
 
 
-    #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), userdata, roundstart)
-    utils.sleepwithlisten(api,dmapi, 5 * 60, userdata, roundstart)
+    #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
+    utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    checksubmissions(api, dmapi, problemstart_timestamp, curproblemid, problemname, dm_rec_id)
+    checksubmissions(ctrls, problemstart_timestamp, curproblemid, problemname)
     
     return

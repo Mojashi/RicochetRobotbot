@@ -21,6 +21,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="APIControler.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="directmessage.py">
       <SubType>Code</SubType>
     </Compile>

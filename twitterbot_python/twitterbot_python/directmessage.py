@@ -1,5 +1,4 @@
 import requests
-import json
 from requests_oauthlib import OAuth1Session
 import os
 import sys
@@ -11,7 +10,12 @@ class DirectMessanger:
         pass
 
     def __init__(self, consumer_key,consumer_secret, access_token,access_token_secret):
-        self.twitter = OAuth1Session(consumer_key, consumer_secret, access_token, access_token_secret)
+        self.CONSUMER_KEY = consumer_key
+        self.CONSUMER_SECRET = consumer_secret
+        self.ACCESS_TOKEN = access_token
+        self.ACCESS_SECRET = access_token_secret
+
+        self.twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
         self.headers = {"content-type": "application/json"}
 
     def receive_dm(self, since_timestamp=-1, until_timestamp=-1, count=20000000):
@@ -55,15 +59,21 @@ class DirectMessanger:
     def send_dm(self, target_id, msg_text):
         url = "https://api.twitter.com/1.1/direct_messages/events/new.json"
         param = {"event": {"type": "message_create", "message_create": {"target": {"recipient_id": target_id}, "message_data": {"text": msg_text}}}}
-        ret = self.twitter.post(url, headers = self.headers, data = json.dumps(param))
+        
+        while True:
+            try:
+                ret = self.twitter.post(url, headers = self.headers, data = json.dumps(param))
+                break
+            except requests.exceptions.ConnectionError:
+                print("Connection Error\n")
+                sleep(60)
+                self.twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
+
         if ret.status_code != 200:
                 raise self.BadRequest()
 
         jsn = json.loads(ret.text)
         return jsn['event']['created_timestamp']
-
-
-    
 
     def uploadmedia(self, filename):
         self.video_filename = filename

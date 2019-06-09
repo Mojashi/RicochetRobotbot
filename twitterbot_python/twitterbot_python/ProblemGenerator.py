@@ -3,7 +3,6 @@ import math
 import random
 import subprocess
 import sys
-import json
 import time
 import copy
 
@@ -158,12 +157,13 @@ def ProblemGenerate(fname, lowerbound):
     pics[0].save(fname+'_base.png')
     pics[1].save(fname+'.png')
     
-    outdict = {"board":mp, "baseimg":fname+'_base.png',"img":fname+'.png',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"answer":answer.decode('utf-8').split('\n')}
+    ansmoves = answer.decode('utf-8').split('\n')
+    ansmoves.pop(len(ansmoves) - 1)
+    optmoves = int(ansmoves[0])
+    ansmoves.pop()
+    outdict = {"board":mp, "baseimg":fname+'_base.png',"img":fname+'.png',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"optimal_moves":optmoves,"answer":ansmoves}
     
-    f = open(fname + '.json', 'w')
-    json.dump(outdict,f)
-    f.close()
-    return int(answer.decode('utf-8').split('\n')[0])
+    return outdict
 
 
 if __name__ == '__main__':

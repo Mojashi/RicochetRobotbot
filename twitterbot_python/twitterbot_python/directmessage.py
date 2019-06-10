@@ -3,6 +3,7 @@ from requests_oauthlib import OAuth1Session
 import os
 import sys
 import time
+import json
 import pymongo
 
 class DirectMessanger:
@@ -66,7 +67,7 @@ class DirectMessanger:
                 break
             except requests.exceptions.ConnectionError:
                 print("Connection Error\n")
-                sleep(60)
+                time.sleep(60)
                 self.twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
 
         if ret.status_code != 200:

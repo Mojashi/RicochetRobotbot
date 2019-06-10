@@ -6,7 +6,6 @@ import json
 import sys
 import copy
 import random
-import ProblemGenerator
 import re
 from PIL import Image
 from datetime import datetime
@@ -36,15 +35,60 @@ def absolutedofunc(func, *args, **kwargs):
                 time.sleep(1)
     return
 
-def decoratename(ctrls, userid_str):
+def picknewproblem(ctrls, move):
+    
+    newprob = ctrls.db['problem'].find_one({'used':False, 'optimal_moves':move})
+    
+    if newprob == None:
+      return None
+
+    plist = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )
+    if len(plist) == 0:
+        newprob['problem_num'] = 1
+    else:
+        newprob['problem_num'] = plist[0]['problem_num'] + 1
+    
+    pics = GenerateImage(newprob['board'],newprob['goalpos'],newprob['robotpos'],newprob['mainrobot'])
+    pics[0].save("problems/" + str(newprob['problem_num'])+'_base.png')
+    pics[1].save("problems/" + str(newprob['problem_num'])+'.png')
+
+    newprob['img'] = "problems/" + str(newprob['problem_num']) + '.png'
+    newprob['baseimg'] = "problems/" + str(newprob['problem_num']) + '_base.png'
+    
+    newprob['used'] = True
+    ctrls.db['problem'].save(newprob)
+
+    return newprob
+
+def accessdict(dict, keyword):
+    def recfunc(dic, w):
+        if len(w) == 1:
+            return dic[w[0]]
+        return recfunc(dic[w[0]], w[1:])
+    
+    return recfunc(dict,keyword.split('.'))
+
+def getrank(ctrls, user_id, keyword = 'pointsum.Wanko-Soba'):
+    pipe = [{'$match':{keyword: {'$gt':accessdict(ctrls.getuser(user_id),keyword)}}}, {'$count' : 'zrank'}]
+    agg = list(ctrls.db['user'].aggregate(pipeline = pipe))
+    if len(agg) == 0:
+        return 1
+    return agg[0]['zrank'] + 1
+
+def decoratename(ctrls, userid_str, username = ''):
     user = ctrls.db['user'].find_one({'user_id':userid_str})
 
-    decorate = ctrls.db['decoration'].find_one({'$gte' : {'range_lb': user['rank']}, '$lte' : {'range_ub' : user['rank']} })
+    if username == '':
+        username = user['screen_name']
 
-    if decorate == None:
-        return user['screen_name']
+    userrank = getrank(ctrls,userid_str, 'pointsum.Wanko-Soba')
 
-    return decorate['deco'].replace('%user', user['screen_name'])
+    with open('decorate.json',encoding="utf-8_sig") as f:
+        decorate = json.load(f)
+        for v in decorate.values():
+            if v['range'][0] <= userrank and v['range'][1] >= userrank:
+                return v['deco'].replace('%user', username)
+    return username
 
 
 def parsetext(text, dirdict):
@@ -91,19 +135,20 @@ def checkanswer(mp, robotpos, goalpos, mainrobot, ans):
     return len(ans)
 
 
-def creategif(ctrls, problemname, ans):
+def creategif(ctrls, problem_num, ans):
     Dir = [[0,-1],[1,0],[0,1],[-1,0]]
-    with open('problems/' + problemname + '.json') as f:
-        cdict = json.load(f)
-        mp = cdict['board']
-        curpos = cdict['robotpos']
-        goalpos = cdict['goalpos']
-        mainrobot = cdict['mainrobot']
-        answer = cdict['answer']
-        imgname = cdict['img']
-        if 'baseimg' not in cdict.keys():
-            return None
-        baseimgname = cdict['baseimg']
+    cdict = ctrls.db['problem'].find_one({'problem_num' : problem_num})
+
+    mp = cdict['board']
+    curpos = cdict['robotpos']
+    goalpos = cdict['goalpos']
+    mainrobot = cdict['mainrobot']
+    answer = cdict['answer']
+    imgname = cdict['img']
+    if 'baseimg' not in cdict.keys():
+        return None
+
+    baseimgname = cdict['baseimg']
     fimg = Image.open(imgname)
     width = int(fimg.width / 2)
     height = int(fimg.height / 2)
@@ -121,15 +166,15 @@ def creategif(ctrls, problemname, ans):
             if mp[to[0]][to[1]][d] == 1 or nex in curpos:
                 break
             to = nex
-
+            
         while [int(fr[0] * 10),int(fr[1] * 10)] != [int(to[0] * 10),int(to[1] * 10)]:
             nex = [fr[0] + Dir[d][0] / 1.0, fr[1] + Dir[d][1] / 1.0]
             fr = nex
             curpos[num] = fr
-            imgs.append(ProblemGenerator.GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
+            imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
             
-        imgs.append(ProblemGenerator.GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
-        imgs.append(ProblemGenerator.GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
+        imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
+        imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
     
         curpos[num] = [int(curpos[num][0]),int(curpos[num][1])]
 
@@ -145,9 +190,9 @@ def creategif(ctrls, problemname, ans):
     return None
 
 def tweethourlyranking(ctrls, fr, basetext="", reply_id=None):
-    text = basetext + "Round Ranking:\n"
+    text = basetext + "\n"
     
-    sorteduser = ctrls.db['user'].find({'$gte' : {'history' : ft}}).sort({'roundscore' : -1})
+    sorteduser = ctrls.db['user'].find({'history' : {'$gte' : fr}}).sort('roundscore', pymongo.DESCENDING)
 
     realrank = 1
     buf = -1
@@ -167,14 +212,21 @@ def tweethourlyranking(ctrls, fr, basetext="", reply_id=None):
     else:
         return absolutedofunc(ctrls.twapi.update_status,text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
 
-def tweetoverallranking(ctrls,  basetext="", reply_id=None):
+def tweetoverallranking(ctrls,  basetext="", keyword = 'pointsum.Wanko-Soba',reply_id=None):
     text = "Overall Ranking:\n"
     
-    sorteduser = ctrls.db['user'].find().sort({'pointsum.Wanko-Soba' : -1})
+    sorteduser = ctrls.db['user'].find().sort(keyword, pymongo.DESCENDING)
 
+    counter = 1
+    currank = 1
+    bef = 0
     for user in list(sorteduser):
-        text += str(user['rank']) + '. ' + decoratename(ctrls, user['user_id']) + ' ' + str(user['pointsum.Wanko-Soba']) + 'win\n'
-        if i == 9:
+        if bef != accessdict(user,keyword):
+            currank = counter
+        text += str(currank) + '. ' + decoratename(ctrls, user['user_id']) + ' ' + str(accessdict(user,keyword)) + 'pt\n'
+        counter += 1
+        bef = accessdict(user,keyword)
+        if counter == 10:
             break
 
         
@@ -184,27 +236,22 @@ def tweetoverallranking(ctrls,  basetext="", reply_id=None):
         return absolutedofunc(ctrls.twapi.update_status,text, in_reply_to_status_id = reply_id, auto_populate_reply_metadata=True)
 
 def setdefaultuser(ctrls, user_id_str, screen_name=''):
-    ctrls.db['user'].update({'user_id':user_id_str},
+    ctrls.db['user'].update({'user_id':user_id_str},{'$setOnInsert':
         {'user_id':user_id_str,
-         'rank':9999999, 
-         'wincount':0, 
+         'pointsum':{'Wanko-Soba':0,'Time-Limited':0}, 
          'screen_name':screen_name,
          'history':[], 
-         'winhistory':[], 
          'keyconfig':{'u':0,'r':1,'d':2,'l':3}, 
-         'roundscore':0}, upsert = True)
+         'roundscore':0}}, upsert = True)
 
 
 def setdefaultcollection(ctrls):
-    ctrls.db['user'].update_many({}, {'$setOnInsert' : {'rank':9999999, 
-         'wincount':0, 
+    ctrls.db['user'].update_many({}, {'$setOnInsert' : {
+         'pointsum':{'Wanko-Soba':0,'Time-Limited':0}, 
          'screen_name':'',
          'history':[], 
-         'winhistory':[], 
          'keyconfig':{'u':0,'r':1,'d':2,'l':3}, 
          'roundscore':0}}, upsert = True)
-    ctrls.db['problem'].update_many({}, {'$setOnInsert' : {'rank':9999999, 
-         'used':False}}, upsert = True)
    
 
 def commandproc(ctrls, stat, fr=-1):
@@ -216,8 +263,11 @@ def commandproc(ctrls, stat, fr=-1):
         return
 
     if args[0] == '!myrank':
-        setdefaultuser(stat.user.id_str, stat.user.screen_name)
-        absolutedofunc(ctrls.twapi.update_status,'Wins:' + str(ctrls.getuser(stat.user.id_str)['wincount']) + '\nRank:' + str(ctrls.getuser(stat.user.id_str)['rank']), in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+        setdefaultuser(ctrls, stat.user.id_str, stat.user.screen_name)
+        absolutedofunc(ctrls.twapi.update_status,
+                       'Wanko-Soba: ' + str(ctrls.getuser(stat.user.id_str)['pointsum']['Wanko-Soba']) + 'pt Rank' + str(getrank(ctrls, stat.user.id_str, 'pointsum.Wanko-Soba')) + 
+                       '\nTime-Limited: ' + str(ctrls.getuser(stat.user.id_str)['pointsum']['Time-Limited']) + 'pt Rank' + str(getrank(ctrls, stat.user.id_str, 'pointsum.Time-Limited'))
+                       , in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
     
     elif args[0] == '!ありがとう' or args[0] == '!thank':
         absolutedofunc(ctrls.twapi.update_status,'どういたしまして', in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
@@ -226,11 +276,16 @@ def commandproc(ctrls, stat, fr=-1):
         kuji = ['Daikichi', 'Chukichi', 'Shokichi', 'Suekichi', 'Kyo', 'Daikyo']
         absolutedofunc(ctrls.twapi.update_status,kuji[random.randint(0, len(kuji) - 1)], in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
     
-    elif fr != -1 and args[0] == '!roundrank':
-        tweethourlyranking(ctrls, fr, reply_id = stat.id)
-
-    elif args[0] == '!overallrank':
-        tweetoverallranking(ctrls, reply_id = stat.id)
+    elif args[0] == '!ranking':
+        if len(args) >= 2:
+            if args[1] == 'wankosoba':
+                tweetoverallranking(ctrls, 'Wanko-Soba Ranking', 'pointsum.Wanko-Soba', reply_id = stat.id)
+        
+            elif args[1] == 'timelimited':
+                tweetoverallranking(ctrls, 'Time-Limited Ranking', 'pointsum.Time-Limited', reply_id = stat.id)
+        
+            elif fr != -1 and args[1] == 'round':
+                tweethourlyranking(ctrls, fr, reply_id = stat.id)
 
     elif args[0] == '!janken':
             if len(args) >= 2:
@@ -251,44 +306,43 @@ def commandproc(ctrls, stat, fr=-1):
         setdefaultuser(ctrls, stat.user.id_str, stat.user.screen_name)
 
         if args[1] == 'wasd':
-            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'keyconfig' : {'w':0,'d':1,'s':2,'a':3}})
+            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'$set' : {'keyconfig' : {'w':0,'d':1,'s':2,'a':3}}})
             absolutedofunc(ctrls.twapi.create_favorite,stat.id)
     
         elif args[1] == 'urdl':
-            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'keyconfig' :{'u':0,'r':1,'d':2,'l':3}})
+            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'$set' : {'keyconfig' :{'u':0,'r':1,'d':2,'l':3}}})
             absolutedofunc(ctrls.twapi.create_favorite,stat.id)
             
         elif args[1] == 'hjkl':
-            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'keyconfig' :{'k':0,'l':1,'j':2,'h':3}})
+            ctrls.db['user'].update({'user_id' : stat.user.id_str},{'$set' : {'keyconfig' :{'k':0,'l':1,'j':2,'h':3}}})
             absolutedofunc(ctrls.twapi.create_favorite,stat.id)
 
 
-    elif args[0] == '!gif':
-        rpd = ctrls.twapi.get_status(stat.in_reply_to_status_id)
-        gifid = None
+    #elif args[0] == '!gif':
+    #    rpd = ctrls.twapi.get_status(stat.in_reply_to_status_id)
+    #    gifid = None
 
-        with open('gifs.json','r') as f:
-            algif = json.load(f)
-            if rpd.id_str in algif.keys():
-                gifid = algif[rpd.id_str]
+    #    algif = ctrls.db['gif'].find_one({'answer_tweet_id':rpd.id_str})
+    #    if algif != None:
+    #        gifid = algif['gif_id']
 
-        print("gif")
-        if gifid == None:
-            setdefaultuser(ctrls,rpd.user.id_str, rpd.user.screen_name)
-            ans = parsetext(rpd.text, cutrls.getuser(rpd.user.id_str)['keyconfig'])
-            if ans != -1:
-                with open('history.json','r') as f:
-                    history = json.load(f)
-                    probnamelis = [k for k, v in history.items() if v == rpd.in_reply_to_status_id]
-                    if len(probnamelis) > 0:
-                        gifid = creategif(ctrls, probnamelis[0], ans)
-                        algif[rpd.id_str] = gifid
+    #    print("gif")
+    #    if gifid == None:
+    #        setdefaultuser(ctrls,rpd.user.id_str, rpd.user.screen_name)
+    #        ans = parsetext(rpd.text, cutrls.getuser(rpd.user.id_str)['keyconfig'])
+    #        if ans != -1:
+    #            with open('history.json','r') as f:
+    #                history = json.load(f)
+    #                probnamelis = [k for k, v in history.items() if v == rpd.in_reply_to_status_id]
+    #                if len(probnamelis) > 0:
+    #                    gifid = creategif(ctrls, probnamelis[0], ans)
+    #                    algif[rpd.id_str] = gifid
 
-                        with open('gifs.json','w') as f:
-                             json.dump(algif, f)
+    #                    with open('gifs.json','w') as f:
+    #                         json.dump(algif, f)
     
-        if gifid != None:
-            absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid],in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
+    #    if gifid != None:
+    #        absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid],in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
 
     return
 
@@ -297,8 +351,8 @@ def convertans(answer, robotpos):
     curpos = copy.copy(robotpos)
 
     ret = ''
-    for i in range(int(answer[0])):
-        nex = answer[i + 1]
+    for i in range(len(answer)):
+        nex = answer[i]
         num,y,x = [int(x) for x in nex.split(' ')]
         
         for itr in Dir.items():
@@ -351,3 +405,45 @@ def tweetlongtext(ctrls, **kwargs):
         beforestat = absolutedofunc(ctrls.twapi.update_status, **kwargs)
 
     return beforestat
+
+
+def GenerateImage(mp, goalpos, robotpos, mainrobot, baseimgname = ''):
+    
+    robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
+    width = robotimg[0].width
+    height = robotimg[0].height
+
+    ret = Image.new('RGB', (width * 16, height*16))
+
+    if baseimgname == '':
+        groundimg = Image.open('img/ground.png')
+        wallimg = Image.open('img/wall.png')
+        goalimg = Image.open('img/goal.png')
+        centerimg = Image.open('img/center.png');
+        
+        markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
+
+        
+        
+        for i in range(16):
+            for j in range(16):
+                if (i==7 or i==8) and (j == 7 or j == 8):
+                    ret.paste(centerimg, (i*width, j*height))
+                else:
+                    ret.paste(groundimg, (i*width, j*height))
+                    for k in range(4):
+                        if mp[i][j][k] == 1:
+                            ret.paste(wallimg.rotate(k * -90), (i*width, j*height), wallimg.rotate(k * -90).split()[3])
+
+        ret.paste(markimg[mainrobot], (int(7.5*width), int(7.5*height)), markimg[mainrobot].split()[3]);
+        ret.paste(goalimg,  (goalpos[0]*width, goalpos[1]*height), goalimg.split()[3])
+        
+        baseimg = copy.copy(ret)
+    else:
+        baseimg = Image.open(baseimgname)
+        ret = Image.open(baseimgname)
+
+    for i in range(5):
+        ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
+
+    return baseimg,ret

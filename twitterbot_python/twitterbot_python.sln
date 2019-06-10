@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28307.645
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "twitterbot_python", "twitterbot_python\twitterbot_python.pyproj", "{063055AB-4F8F-4464-96B5-E07127EE8811}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "ProblemStocker", "ProblemStocker\ProblemStocker.pyproj", "{71ED4261-0C7B-4DB9-BF35-4B3F3F081CB1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +15,8 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{063055AB-4F8F-4464-96B5-E07127EE8811}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{063055AB-4F8F-4464-96B5-E07127EE8811}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71ED4261-0C7B-4DB9-BF35-4B3F3F081CB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71ED4261-0C7B-4DB9-BF35-4B3F3F081CB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

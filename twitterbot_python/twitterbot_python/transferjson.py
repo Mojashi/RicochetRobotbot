@@ -15,36 +15,49 @@ import json
 
 
 mongocl = pymongo.MongoClient('localhost', 27017)
-db = mongocl['ricochettest']
+print('input mode = [test:0, real:1]')
+
+istest = int(input())
+if istest == 1:
+    db = mongocl['ricochetrobots']
+if istest == 0:
+    db = mongocl['ricochettest']
+
 data = []
 
-#with open('userdata.json') as f:
-#    dict = json.load(f)
-#    for item in dict.items():
-#        for i in len(item[1]['history']):
-#            item[1][i] = int(item[1]['history'][i])
-#        buf = {'user_id':item[0]}
-#        buf.update(item[1])
-#        data.append(buf)
+with open('userdata.json') as f:
+    dict = json.load(f)
+    for item in dict.items():
+        for i in range(len(item[1]['history'])):
+            item[1]['history'][i] = int(item[1]['history'][i])
 
-#    result = db['user'].insert(data)
-#    print(result)
 
-#with open('history.json') as f:
-#    dict = json.load(f)
-#    for item in dict.items():
-#        buf = {'problem_num':int(item[0]), 'tweet_id':item[1]}
-#        with open('problems/' + str(item[0]) + '.json') as fp:
-#            dic = json.load(fp)
-#            dic.update({'optimal_moves':int(dic['answer'][0])})
-#            dic['answer'].pop()
-#            buf.update(dic)
+        item[1].pop('winhistory')
 
-#        data.append(buf)
+        buf = {'user_id':item[0], 'pointsum':{'Wanko-Soba':item[1]['wincount'], 'Time-Limited':0}}
+        buf.update(item[1])
+        data.append(buf)
 
-#    result = db['problem'].insert(data)
-#    print(result)
+    result = db['user'].insert(data)
+    print(result)
+    
+data = []
+with open('history.json') as f:
+    dict = json.load(f)
+    for item in dict.items():
+        buf = {'problem_num':int(item[0]), 'used' : True,'tweet_id':item[1]}
+        with open('problems/' + str(item[0]) + '.json') as fp:
+            dic = json.load(fp)
+            dic.update({'optimal_moves':int(dic['answer'][0])})
+            dic['answer'].pop()
+            buf.update(dic)
 
+        data.append(buf)
+
+    result = db['problem'].insert(data)
+    print(result)
+    
+data = []
 with open('rounds.json') as f:
     dict = json.load(f)
     for item in dict.items():

@@ -4,7 +4,6 @@ import math
 import pymongo
 import copy
 import random
-import ProblemGenerator
 import re
 from PIL import Image
 from datetime import datetime
@@ -18,18 +17,16 @@ def tweetnewproblem(ctrls):
     
     #movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
     
-    newprob = ctrls.db['problem'].find_one({'used':False})
     
-    plist = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )
-    if len(plist) == 0:
-        newprob['problem_num'] = 1
-    else:
-        newprob['problem_num'] = [0]['problem_num'] + 1
+    newprob = None
+    while newprob == None:
+        newprob = utils.picknewproblem(ctrls, random.randint(9, 16))
+
+
     stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'],
-                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(newprob['problem_num']) + "\nOptimal:" +str(movecount) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(ctrls.dm_rec_id))
+                               status="この問題の回答はリプライではなくDMで送信してください。\n制限時間は5分です。\nProblem number:" + str(newprob['problem_num']) + "\nOptimal:" +str(newprob['optimal_moves']) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(ctrls.dm_rec_id))
     
     newprob['tweet_id'] = stat.id
-    newprob['used'] = True
     ctrls.db['problem'].save(newprob)
 
     return stat.id, newprob['problem_num']
@@ -37,22 +34,22 @@ def tweetnewproblem(ctrls):
 def startround(ctrls, roundstart, timelimit, roundname):
 
     while True:
-        curproblemid, problemname = tweetnewproblem(ctrls)
+        curproblemid, problem_num = tweetnewproblem(ctrls)
 
-        maincycle(ctrls, timelimit, roundstart, curproblemid, problemname)
+        maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num)
         
         if datetime.now() >= timelimit:
         
-            utils.tweetoverallranking(ctrls, reply_id = utils.tweethourlyranking(ctrls, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
+            utils.tweetoverallranking(ctrls,'Time-Limited Ranking',keyword = 'pointsum.Time-Limited', reply_id = utils.tweethourlyranking(ctrls, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
             roundstart = None
 
             return
         else:
             utils.sleepwithlisten(ctrls, 5, roundstart)
 
-def tweetproblemresult(ctrls, curproblemid, problemname, user_got_score):
+def tweetproblemresult(ctrls, curproblemid, problem_num, user_got_score):
     
-    text = "Problem " + str(problemname) + " Result:\n"
+    text = "Problem " + str(problem_num) + " Result:\n"
     
     sortedscore = sorted(user_got_score.items(), key=lambda x:x[1],reverse=True)
 
@@ -68,7 +65,7 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
     
     problemend_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem ended')
         
-    cdict = ctrls.db['problem'].find_one({'problem_num' : pproblem_num})
+    cdict = ctrls.db['problem'].find_one({'problem_num' : problem_num})
 
     mp = cdict['board']
     robotpos = cdict['robotpos']
@@ -77,6 +74,7 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
     answer = cdict['answer']
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
+    optimal_moves = cdict['optimal_moves']
 
     assumed_solution = utils.convertans(answer, robotpos)
     
@@ -84,7 +82,7 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
     text += 'Answer:' + assumed_solution
     utils.absolutedofunc( ctrls.twapi.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
     
-    gifid = utils.creategif(ctrls, problemname, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
+    gifid = utils.creategif(ctrls, problem_num, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
 
     if gifid != None:
         utils.absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
@@ -112,9 +110,7 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
 
         utils.setdefaultuser(ctrls, user_id_str, screenname)
 
-
-        if problemname not in ctrls.getuser(user_id_str)['history']:
-            ctrls.db['user'].update({'user_id':user_id_str}, {'$push' : {'history' : problem_num}})
+        ctrls.db['user'].update_one({'user_id' : user_id_str}, {'$addToSet' : {'history': problem_num}})
 
         if user_id_str not in user_got_score.keys():
             user_got_score[user_id_str] = 0
@@ -124,33 +120,30 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
         if ways != -1:
             waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
             if waycou != -1:
-                point = max(1, int(100 * math.pow(0.5, waycou - (len(answer) - 2))))
+                point = max(1, int(100 * math.pow(0.5, waycou - optimal_moves)))
 
                 user_got_score[user_id_str] = max(point , user_got_score[user_id_str])
 
 
     for key in user_got_score.keys():
-        ctrls.db['user'].update({'user_id':key}, {'rondscore': user_got_score[key] + ctrls.getuser(key)['roundscore']})
+        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'roundscore': user_got_score[key]}})
+        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'pointsum.Time-Limited': user_got_score[key]}})
         
-    tweetproblemresult(ctrls, curproblemid, problemname, user_got_score)
+    tweetproblemresult(ctrls, curproblemid, problem_num, user_got_score)
 
     return
 
-def maincycle(ctrls, timelimit, roundstart, curproblemid, problemname):
+def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     
-    with open('problems/' + problemname + '.json') as f:
-        cdict = json.load(f)
-        mp = cdict['board']
-        robotpos = cdict['robotpos']
-        goalpos = cdict['goalpos']
-        mainrobot = cdict['mainrobot']
-        answer = cdict['answer']
-        imgname = cdict['img']
-        baseimgname = cdict['baseimg']
+    cdict = ctrls.db['problem'].find_one({'problem_num':problem_num})
+    mp = cdict['board']
+    robotpos = cdict['robotpos']
+    goalpos = cdict['goalpos']
+    mainrobot = cdict['mainrobot']
+    answer = cdict['answer']
+    imgname = cdict['img']
+    baseimgname = cdict['baseimg']
         
-    if ctrls.getuser(user_id_str) == None:
-        utils.setdefaultuser(ctrls, key)
-
     assumed_solution = utils.convertans(answer, robotpos)
     print(assumed_solution)
 
@@ -160,6 +153,6 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problemname):
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
     utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    checksubmissions(ctrls, problemstart_timestamp, curproblemid, problemname)
+    checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
     
     return

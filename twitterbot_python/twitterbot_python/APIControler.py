@@ -5,7 +5,6 @@ import traceback
 import sys
 import copy
 import random
-import ProblemGenerator
 import re
 from PIL import Image
 from datetime import datetime
@@ -29,7 +28,9 @@ class APIControler:
         #auth.get_access_token(verifier)
         print('input mode = [test:0, real:1]')
         
-        if int(input()) == 0:
+        istest = int(input())
+
+        if istest == 0:
             ACCESS_TOKEN = '1131066930478034944-dOEypEJR06qTos6usCQpvAqIgirZS8'
             ACCESS_SECRET = 'etEIzdmzHi99aTcgfkWmwmhEkDRbdT6r4FAc0lsaZYkmW'
             self.dm_rec_id = 1131066930478034944
@@ -46,10 +47,15 @@ class APIControler:
         print('Done!')
 
         self.mongocl = pymongo.MongoClient('localhost', 27017)
-        self.db = self.mongocl['ricochetrobots']
+        
+        if istest == 0:
+            self.db = self.mongocl['ricochettest']
+        else:
+            self.db = self.mongocl['ricochetrobots']
+
         utils.setdefaultcollection(self)
 
     
-    def getuser(user_id_str):
-        return self.db['user'].find({'user_id' : user_id_str})
+    def getuser(self,user_id_str):
+        return self.db['user'].find_one({'user_id' : user_id_str})
     

@@ -3,30 +3,24 @@ import time
 import pymongo
 import copy
 import random
-import ProblemGenerator
 import re
 from PIL import Image
 from datetime import datetime
 from imgurpython import ImgurClient
-
+import random
 import utils
 from datetime import datetime
 import APIControler
 
 def tweetnewproblem(ctrls):
     
-    newprob = ctrls.db['problem'].find_one({'used':False})
-    
-    plist = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )
-    if len(plist) == 0:
-        newprob['problem_num'] = 1
-    else:
-        newprob['problem_num'] = [0]['problem_num'] + 1
+    newprob = None
+    while newprob == None:
+        newprob = utils.picknewproblem(ctrls, random.randint(5, 14))
 
     stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'], status="Problem number:" + str(newprob['problem_num']))
     
     newprob['tweet_id'] = stat.id
-    newprob['used'] = True
     ctrls.db['problem'].save(newprob)
 
     return stat.id, newprob['problem_num']
@@ -40,41 +34,19 @@ def startround(ctrls, roundstart, timelimit, roundname):
         
         if datetime.now() >= timelimit:
         
-            utils.tweetoverallranking(ctrls, reply_id = utils.tweethourlyranking(ctrls, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
+            utils.tweetoverallranking(ctrls,'Wanko-Soba Ranking', keyword = 'pointsum.Wanko-Soba', reply_id = utils.tweethourlyranking(ctrls, roundstart, basetext = 'Round ' + roundname + ' Finished\n').id)
             roundstart = None
 
             return
         else:
             utils.sleepwithlisten(ctrls, 20, roundstart)
 
-                
-def winproc(ctrls, stat, problem_num):
-    userdata = ctrls.getuser(stat.user.id_str)
-    userdata[stat.user.id_str]['pointsum.Wanko-Soba']+=1
-    userdata[stat.user.id_str]['winhistory'].append(problem_num)
-    userdata[stat.user.id_str]['roundscore'] += 1
-
-    sorteduser = sorted(userdata.items(), key=lambda x:x[1]['pointsum.Wanko-Soba'],reverse=True)
-
-    realrank = 1
-    buf = -1
-    for i in range(len(sorteduser)):
-        usr = sorteduser[i][0]
-        if buf != userdata[usr]['wincount']:
-            realrank = i + 1
-        userdata[usr]['rank'] = realrank
-        buf = userdata[usr]['wincount']
-        
-    ctrls.db['user'].save(userdata)
-    return
-
-
 
 def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     curshortest = 10000000
     curshorteststat = None
             
-    cdict = ctrls.db['problem'].find_one(problem_num)
+    cdict = ctrls.db['problem'].find_one({'problem_num':problem_num})
     mp = cdict['board']
     robotpos = cdict['robotpos']
     goalpos = cdict['goalpos']
@@ -82,6 +54,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     answer = cdict['answer']
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
+    optimal_moves = cdict['optimal_moves']
 
     assumed_solution = utils.convertans(answer, robotpos)
     print(assumed_solution)
@@ -99,7 +72,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
                 
                 utils.setdefaultuser(ctrls, stat.user.id_str, stat.user.screen_name)
 
-                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$put' : {'history': problem_num}})
+                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$addToSet' : {'history': problem_num}})
 
                 ways = utils.parsetext(stat.text, ctrls.getuser(stat.user.id_str)['keyconfig'])
 
@@ -113,14 +86,18 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
                             text += '\nCurrently Shortest'
                             curshorteststat = stat
                             
-                            if int(answer[0]) == waycou:
+
+                            if optimal_moves == waycou:
                                 text += '\nOptimal'
 
                             utils.absolutedofunc(ctrls.twapi.update_status,text, in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
                             
-                            if int(answer[0]) == waycou:
-                                utils.winproc(ctrls, stat, problem_num)
-                                utils.absolutedofunc(ctrls.twapi.update_status,'Finished.\n🎉Winner ' + utils.decoratename('@' + stat.user.screen_name, stat.user.id_str) + '\n' + 'https://twitter.com/' + stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
+                            if optimal_moves == waycou:
+                                
+                                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'roundscore': 1}})
+                                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'pointsum.Wanko-Soba' : 1}})
+
+                                utils.absolutedofunc(ctrls.twapi.update_status,'Finished.\n🎉Winner ' + utils.decoratename(ctrls, stat.user.id_str,username = '@' + stat.user.screen_name) + '\n' + 'https://twitter.com/' + stat.user.screen_name + '/status/' + str(stat.id), in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
                                 
                                 gifid = utils.creategif(ctrls,problem_num, ways)
                                 if gifid != None:
@@ -131,8 +108,9 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
         if datetime.now() >= timelimit:
             text = 'Timeup.\n'
             if curshorteststat != None:
-                utils.winproc(ctrls, curshorteststat, problem_num)
-                text += '🎉Winner ' + utils.decoratename('@' + curshorteststat.user.screen_name, curshorteststat.user.id_str) + '\n' + 'https://twitter.com/' + curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
+                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'roundscore': 1}})
+                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'pointsum.Wanko-Soba' : 1}})
+                text += '🎉Winner ' + utils.decoratename(ctrls, curshorteststat.user.id_str, username = '@' + curshorteststat.user.screen_name) + '\n' + 'https://twitter.com/' + curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
             
             text += 'Answer:' + assumed_solution
             utils.absolutedofunc( ctrls.twapi.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)

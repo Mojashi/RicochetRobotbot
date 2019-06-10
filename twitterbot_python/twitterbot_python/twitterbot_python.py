@@ -1,7 +1,6 @@
 import tweepy
 import time
 import utils
-import json
 import wankosobaround
 import pymongo
 import random
@@ -28,13 +27,12 @@ timelimit = None
 mode = None
 roundname = str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour)
 
-with open('rounds.json') as f:
-    rounds = json.load(f)
+rounddict = ctrls.db['round'].find_one({'round_num': roundname})
 
-if roundname in rounds.keys():
-    roundstart = rounds[roundname]['roundstart']
-    timelimit = datetime.strptime(rounds[roundname]['timelimit'], '%Y/%m/%d %H:%M:%S')
-    mode = rounds[roundname]['mode']
+if rounddict != None:
+    roundstart = rounddict['roundstart']
+    timelimit = datetime.strptime(rounddict['timelimit'], '%Y/%m/%d %H:%M:%S')
+    mode = rounddict['mode']
 
 while True:
     
@@ -43,20 +41,18 @@ while True:
 
         utils.absolutedofunc(ctrls.twapi.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
         
-        with open('history.json','r') as f:
-            history = json.load(f)
-            roundstart = int(len(history) + 1)
+        roundstart = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )[0]['problem_num'] + 1
 
         roundname = str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour)
         timelimit = datetime.now()
         timelimit = datetime(timelimit.year, timelimit.month, timelimit.day, timelimit.hour, roundrange[1], 0, 0)
         
-        with open('rounds.json', 'w') as f:
-            rounds[roundname] = {}
-            rounds[roundname]['mode'] = mode
-            rounds[roundname]['roundstart'] = roundstart
-            rounds[roundname]['timelimit'] = timelimit.strftime('%Y/%m/%d %H:%M:%S')
-            json.dump(rounds,f)
+        rounddict = {}
+        rounddict['mode'] = mode
+        rounddict['roundstart'] = roundstart
+        rounddict['timelimit'] = timelimit.strftime('%Y/%m/%d %H:%M:%S')
+        rounddict['round_num'] = roundname
+        ctrls.db['round'].insert(rounddict)
             
         ctrls.db['user'].update_many({}, {'$set' : {'roundscore' : 0}})
             

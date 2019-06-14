@@ -7,7 +7,7 @@ import json
 import time
 
 def solve(mp, goalpos, robotpos, mainrobot):
-    with subprocess.Popen("level2.exe", stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
+    with subprocess.Popen("solver.exe", stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
         instr = ""
 
         for i in range(16):
@@ -28,7 +28,7 @@ def solve(mp, goalpos, robotpos, mainrobot):
         print(instr)
 
         try:
-            outdata,errdata = p.communicate(input=instr.encode(), timeout=30)
+            outdata,errdata = p.communicate(input=instr.encode(), timeout=300)
         except subprocess.TimeoutExpired:
             p.kill()
             raise

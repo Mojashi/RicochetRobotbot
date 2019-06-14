@@ -21,12 +21,16 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="contest.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="APIControler.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="directmessage.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ProblemGenerator.py" />
     <Compile Include="timelimitround.py">
       <SubType>Code</SubType>
     </Compile>
@@ -35,6 +39,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="wankosobaround.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="webhook_receiver.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

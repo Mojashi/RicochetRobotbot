@@ -45,7 +45,7 @@ typedef long long ll;
 typedef pair<int, int> pii;
 typedef pair<ll, ll> pll;
 template<typename A, size_t N, typename T>
-void Fill(A(&array)[N], const T &val) {
+void Fill(A(&array)[N], const T & val) {
 	std::fill((T*)array, (T*)(array + N), val);
 }
 pll Dir[4] = {
@@ -139,6 +139,10 @@ struct Board {
 #define PNUM(a) (a.first * Width + a.second)
 #define PtoD(x) ((x.first + 3*x.first + x.second + 4*x.second)%4)
 #define ValidPos(p) (p.first >= 0 && p.first < Height && p.second >= 0 && p.second < Width)
+
+	unordered_map<ll, int> rever;//from goal to start
+	int reverdepth = -1;
+	const int DUMMYNUM = PNUM(MP( 7,7 ));
 public:
 
 	void Scan() {
@@ -177,7 +181,7 @@ public:
 			if (f.first == -1) break;
 
 			field[f.first][f.second].wall[dir] = true;
-			if(field[f.first + Dir[dir].first>=0&&f.second + Dir[dir].second]>=0&& f.first + Dir[dir].first<16&&f.second + Dir[dir].second<16)
+			if (field[f.first + Dir[dir].first >= 0 && f.second + Dir[dir].second] >= 0 && f.first + Dir[dir].first < 16 && f.second + Dir[dir].second < 16)
 				field[f.first + Dir[dir].first][f.second + Dir[dir].second].wall[(dir + 2) % 4] = true;
 		}
 
@@ -239,7 +243,18 @@ public:
 		return ret;
 	}
 
-	pii Go(vector<pii>& robots, int idx, int dir) {
+	inline ll Encode(array<int, Robotnum> robots, int idx) {
+		ll ret = 0;
+		swap(robots[idx], robots[0]);
+		sort(robots.begin() + 1, robots.end());
+		REP(i, robots.size()) {
+			ll cur = robots[i];
+			ret |= cur << i * 8;
+		}
+		return ret;
+	}
+
+	pii Go(vector<pii> & robots, int idx, int dir) {
 		pii ret, pos = robots[idx];
 		switch (dir) {
 		case UP:
@@ -283,11 +298,129 @@ public:
 		Node* p = NULL;
 		Node(int rt) : root(rt) {}
 		Node(Node* par) :p(par) { if (par != NULL) root = par->root; }
-		Node(Node* par, T in) : p(par), v(in) { if (par != NULL) root = par->root; }
+		Node(Node * par, T in) : p(par), v(in) { if (par != NULL) root = par->root; }
 	};
 
 	int dist[256][256] = {}, distdir[256][256][4] = {};
 	//vector<Node<pii>*> block[256][256];
+
+	void EnumurateRever(int depth, int goal) {
+		queue<pair<int, array<int, Robotnum>>> que;
+
+		array<int, Robotnum> initpos = { goal, DUMMYNUM,DUMMYNUM,DUMMYNUM,DUMMYNUM };
+
+		reverdepth = depth;
+
+		que.push({ 0,initpos });
+
+		while (que.size()) {
+
+			array<int, Robotnum> cur = que.front().second;
+			int moves = que.front().first;
+
+			que.pop();
+
+			ll code = Encode(cur, 0);
+
+			if (rever.count(code))
+				continue;
+
+			rever[code] = moves;
+
+			if (moves == depth) continue;
+
+			int rc = 0;
+			REP(i, Robotnum) {
+				if (cur[i] == DUMMYNUM)
+					break;
+				else
+					rc++;
+			}
+
+
+			REP(cc, rc) {
+				int y = cur[cc] / Width, x = cur[cc] % Width;
+				int mot = cur[cc];
+				bool ok = false;
+
+				if (field[y][x].wall[LEFT] || find(ALL(cur), y * Width + x - 1) != cur.end())
+					ok = true;
+				if (ok || rc < Robotnum) {
+					if (ok == false)
+						cur[rc] = y * Width + x - 1;
+
+					rep(i, x + 1, Width) {
+						if (field[y][i].wall[LEFT]) break;
+
+						cur[cc] = y * Width + i;
+						que.push({ moves + 1, cur });
+						cur[cc] = mot;
+					}
+					if (ok == false)
+						cur[rc] = DUMMYNUM;
+				}
+
+				ok = false;
+
+				if (field[y][x].wall[UP] || find(ALL(cur), (y - 1) * Width + x) != cur.end())
+					ok = true;
+
+				if (ok || rc < Robotnum) {
+					if (ok == false)
+						cur[rc] = (y - 1) * Width + x;
+					rep(i, y + 1, Height) {
+						if (field[i][x].wall[UP]) break;
+
+						cur[cc] = i * Width + x;
+						que.push({ moves + 1, cur });
+						cur[cc] = mot;
+					}
+					if (ok == false)
+						cur[rc] = DUMMYNUM;
+				}
+
+				ok = false;
+				if (field[y][x].wall[RIGHT] || find(ALL(cur), y * Width + x + 1) != cur.end())
+					ok = true;
+
+				if (ok || rc < Robotnum) {
+					if (ok == false)
+						cur[rc] = y * Width + x + 1;
+					for (int i = x - 1; 0 <= i; i--) {
+						if (field[y][i].wall[RIGHT]) break;
+
+						cur[cc] = y * Width + i;
+						que.push({ moves + 1, cur });
+						cur[cc] = mot;
+					}
+					if (ok == false)
+						cur[rc] = DUMMYNUM;
+				}
+
+				ok = false;
+
+				if (field[y][x].wall[DOWN] || find(ALL(cur), (y + 1) * Width + x) != cur.end())
+					ok = true;
+
+				if (ok || rc < Robotnum) {
+					if (ok == false)
+						cur[rc] = (y + 1) * Width + x;
+					for (int i = y - 1; 0 <= i; i--) {
+						if (field[i][y].wall[DOWN]) break;
+
+						cur[cc] = i * Width + x;
+						que.push({ moves + 1, cur });
+						cur[cc] = mot;
+					}
+					if (ok == false)
+						cur[rc] = DUMMYNUM;
+				}
+			}
+
+		}
+
+	}
+
 
 	void Calcdist() {
 		Fill(dist, INT_MAX / 10);
@@ -322,14 +455,16 @@ public:
 
 		REP(st, 256) {
 			REP(en, 256) {
-				dist[st][en] = min({distdir[st][en][0],distdir[st][en][1] ,distdir[st][en][2] ,distdir[st][en][3] });
+				dist[st][en] = min({ distdir[st][en][0],distdir[st][en][1] ,distdir[st][en][2] ,distdir[st][en][3] });
 			}
 		}
 
 	}
 
+
+
 	bool nxr[Height + 2][Width + 2] = {};
-	inline int Estimate(vector<pii>& robots, int idx, pii to, int level) {
+	inline int Estimate(vector<pii> & robots, int idx, pii to, int level) {
 		int frp = PNUM(robots[idx]), top = PNUM(to);
 		if (level == -1) {
 			return (to.first != robots[idx].first) + (to.second != robots[idx].second);
@@ -401,11 +536,11 @@ public:
 				pii nex = { to.first + Dir[i].first, to.second + Dir[i].second };
 				REP(j, robots.size()) {
 					if (j == idx) continue;
-					chmin(Mindist[0], (j == 0) *INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
-					chmin(Mindist[1], (j == 1) *INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
-					chmin(Mindist[2], (j == 2) *INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
-					chmin(Mindist[3], (j == 3) *INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
-					chmin(Mindist[4], (j == 4) *INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
+					chmin(Mindist[0], (j == 0) * INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
+					chmin(Mindist[1], (j == 1) * INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
+					chmin(Mindist[2], (j == 2) * INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
+					chmin(Mindist[3], (j == 3) * INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
+					chmin(Mindist[4], (j == 4) * INT_MAX / 4 + dist[PNUM(robots[j])][PNUM(nex)]);
 				}
 				if ((nxw[nex.first][nex.second] | nxr[nex.first + 1][nex.second + 1]) == false) {
 					REP(j, 4) {
@@ -455,7 +590,7 @@ public:
 				return dist[frp][top];
 			}
 
-			pii secp[9] = { 
+			pii secp[9] = {
 			{to.first - 1, to.second - 1} ,
 			{to.first - 2, to.second + 0} ,
 			{to.first - 1, to.second + 1} ,
@@ -480,7 +615,7 @@ public:
 
 				REP(j, Robotnum) {
 					//int isair = (1 - (nxw[secp[i].first][secp[i].second] | nxr[secp[i].first + 1][secp[i].second + 1]) * (1 - (robots[j] == secp[i])));
-					if (j == 0) 
+					if (j == 0)
 						chmin(secpd[i][0], dist[frp][tap]);
 					else {
 						chmin(secpd[i][1], (j == 1) * INT_MAX / 2 + dist[PNUM(robots[j])][tap]);
@@ -500,7 +635,7 @@ public:
 				REP(j, 4) {
 					int seep = (i * 2 + j) % 8;
 					int dir = (i - 1 + j + 4) % 4;
-				
+
 					REP(k, Robotnum) {
 						if (k == Mainrobot) continue;
 						if (PNUM(robots[k]) == tap) {
@@ -533,8 +668,35 @@ public:
 			return ret;
 		}
 
+		else if (level == 4) {
+			int Min = reverdepth + 1;
+
+			assert(idx == 0);
+			array<int, Robotnum> robotsmt;
+			REP(i, Robotnum) {
+				robotsmt[i] = PNUM(robots[i]);
+			}
+			REP(bt, 1 << 4) {
+				array<int, Robotnum> robotsnm(robotsmt);
+				if (bt & 1)
+					robotsnm[1] = DUMMYNUM;
+				if (bt & 2)
+					robotsnm[2] = DUMMYNUM;
+				if (bt & 4)
+					robotsnm[3] = DUMMYNUM;
+				if (bt & 8)
+					robotsnm[4] = DUMMYNUM;
+
+				ll code = Encode(robotsnm, idx);
+				if (rever.count(code)) {
+					chmin(Min, rever[code]);
+				}
+			}
+
+			return Min;
+		}
 	}
-	int DFS(vector<pii>& robots, int idx, pii to, vector<pair<int, pii>>& history,
+	int DFS(vector<pii> & robots, int idx, pii to, vector<pair<int, pii>> & history,
 		int* bound, int mxlv = 0, int br = 0, int depth = 0, bool res = false) {
 
 
@@ -570,13 +732,20 @@ public:
 				return -1;
 			}
 		}
-		if (mxlv >= 2) {
+		if (mxlv >= 2 && nxw[to.first][to.second] == false && *bound - depth <= 12) {
 			//cout << Estimate(robots, idx, to, 3) << endl;
 			if (depth + (Estimate(robots, idx, to, 3)) >= *bound) {
 				chmax(cant[hash], *bound - depth - 1);
 				return -1;
 			}
 		}
+		if (mxlv >= 3 && *bound - depth <= 1+reverdepth) {
+			if (depth + (Estimate(robots, idx, to, 4)) >= *bound) {
+				chmax(cant[hash], *bound - depth - 1);
+				return -1;
+			}
+		}
+
 		if (al.count(hash)) {
 			if (depth + al[hash].first.size() >= *bound) return -1;
 			//cout << depth + al[hash].size() << endl;
@@ -744,16 +913,18 @@ signed main(void) {
 	REP(i, 5) {
 		cin >> robots[i].first >> robots[i].second;
 	}
-	
+
 	int idx;
 	pii goal;
 	cin >> idx;
 	cin >> goal.first >> goal.second;
 
-	int fbound = 15;
+	board.EnumurateRever(5, goal.first * board.Width + goal.second);
+
+	int fbound = 16;
 	while (1) {
-		auto sol = board.DFSSolve(robots, idx, goal, fbound, 1, fbound == 15);
-		fbound+=5;
+		auto sol = board.DFSSolve(robots, idx, goal, fbound, 3, fbound == 15);
+		fbound += 5;
 		if (sol.size() == 0)continue;
 		cout << sol.size() << endl;
 		for (auto itr : sol) {

@@ -108,8 +108,8 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
         if datetime.now() >= timelimit:
             text = 'Timeup.\n'
             if curshorteststat != None:
-                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'roundscore': 1}})
-                ctrls.db['user'].update_one({'user_id' : stat.user.id_str}, {'$inc':{'pointsum.Wanko-Soba' : 1}})
+                ctrls.db['user'].update_one({'user_id' : curshorteststat.user.id_str}, {'$inc':{'roundscore': 1}})
+                ctrls.db['user'].update_one({'user_id' : curshorteststat.user.id_str}, {'$inc':{'pointsum.Wanko-Soba' : 1}})
                 text += '🎉Winner ' + utils.decoratename(ctrls, curshorteststat.user.id_str, username = '@' + curshorteststat.user.screen_name) + '\n' + 'https://twitter.com/' + curshorteststat.user.screen_name + '/status/' + str(curshorteststat.id) + '\n'
             
             text += 'Answer:' + assumed_solution

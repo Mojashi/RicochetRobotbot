@@ -11,6 +11,7 @@ from datetime import datetime
 from imgurpython import ImgurClient
 import pymongo
 import utils
+from requests_oauthlib import OAuth1Session
 import directmessage
 from oauth2client.service_account import ServiceAccountCredentials
 from httplib2 import Http
@@ -46,8 +47,12 @@ class APIControler:
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         self.twapi = tweepy.API(auth, wait_on_rate_limit=True)
         
-        self.dmapi = directmessage.DirectMessanger(CONSUMER_KEY,CONSUMER_SECRET,ACCESS_TOKEN,ACCESS_SECRET)
         
+        self.oauth_twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
+        
+        self.dmapi = directmessage.DirectMessanger(self.oauth_twitter)
+
+
         print('Done!')
 
         self.mongocl = pymongo.MongoClient('localhost', 27017)

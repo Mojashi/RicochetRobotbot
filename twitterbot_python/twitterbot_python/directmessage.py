@@ -10,13 +10,8 @@ class DirectMessanger:
     class BadRequest(Exception):
         pass
 
-    def __init__(self, consumer_key,consumer_secret, access_token,access_token_secret):
-        self.CONSUMER_KEY = consumer_key
-        self.CONSUMER_SECRET = consumer_secret
-        self.ACCESS_TOKEN = access_token
-        self.ACCESS_SECRET = access_token_secret
-
-        self.twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
+    def __init__(self, twitter_api):
+        self.twitter = twitter_api
         self.headers = {"content-type": "application/json"}
 
     def receive_dm(self, since_timestamp=-1, until_timestamp=-1, count=20000000):

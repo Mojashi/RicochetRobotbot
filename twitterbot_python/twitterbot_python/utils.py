@@ -35,6 +35,11 @@ def absolutedofunc(func, *args, **kwargs):
                 time.sleep(1)
     return
 
+def convert_timestamp(timestamp):
+    return datetime.fromtimestamp(timestamp) + datetime.timedelta(hours = 9)
+
+
+
 def picknewproblem(ctrls, move):
     
     newprob = ctrls.db['problem'].find_one({'used':False, 'optimal_moves':move})

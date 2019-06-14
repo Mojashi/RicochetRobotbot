@@ -10,7 +10,7 @@ from datetime import datetime
 from imgurpython import ImgurClient
 
 import utils
-
+import webhook_receiver
 import APIControler
 
 def tweetnewproblem(ctrls):
@@ -143,16 +143,85 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     answer = cdict['answer']
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
+    
+    start_time = datetime.now()
+
+    user_got_score = {}
         
     assumed_solution = utils.convertans(answer, robotpos)
     print(assumed_solution)
 
     problemstart_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem started')
 
+    problem_length = 5 * 60
+    point_rate = [100, 60]
 
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
-    utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
+    #utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
+    que = webhook_receiver.start()
+
+    while True:
+
+        while que.not_empty():
+            msgs = webhook_receiver.getmsgs()
+            for msg in msgs:
+                
+
+                if str(msg['message_create']['sender_id']) == str(ctrls.dm_rec_id):
+                    continue
+                
+                
+                elapsed_sec = (utils.conver_timestamp(int(msg['created_timestamp']) / 1000) - start_time).total_seconds()
+
+                print(msg)
+
+                text = msg['message_create']['message_data']['text']
+                user_id_str = str(msg['message_create']['sender_id'])
+    
+
+                screenname = ""
+                if ctrls.getuser(user_id_str) == None:
+                    screenname =  utils.absolutedofunc(ctrls.twapi.get_user, user_id = int(user_id_str)).screen_name
+
+                utils.setdefaultuser(ctrls, user_id_str, screenname)
+
+                ctrls.db['user'].update_one({'user_id' : user_id_str}, {'$addToSet' : {'history': problem_num}})
+
+                if user_id_str not in user_got_score.keys():
+                    user_got_score[user_id_str] = 0
+
+                ways = utils.parsetext(text, ctrls.getuser(user_id_str)['keyconfig'])
+
+
+
+                if ways != -1:
+                    waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                    if waycou != -1:
+                        
+                        point = max(1, int((point_rate[0] * (problem_length - elapsed_sec) + point_rate[1] * elapsed_sec) / problem_length * math.pow(0.5, waycou - optimal_moves)))
+
+                        ctrls.dmapi.send_dm(user_id_str, "Accepted!(" + str(waycou) + "moves " + str(point) + "pt).\nYour current score is " + str(user_got_score[user_id_str]) + "pt")
+                        user_got_score[user_id_str] = max(point , user_got_score[user_id_str])
+
+                    else:
+                        ctrls.dmapi.send_dm(user_id_str, "Wrong Answer.")
+                else:
+                    ctrls.dmapi.send_dm(user_id_str, "Invalid format.")
+
+
+        if elapsed_sec >= problem_length:
+            break;
+            
+        utils.sleepwithlisten(ctrls, 1, roundstart)
+
+        
+    for key in user_got_score.keys():
+        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'roundscore': user_got_score[key]}})
+        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'pointsum.Time-Limited': user_got_score[key]}})
+        
+    tweetproblemresult(ctrls, curproblemid, problem_num, user_got_score)
+
+    #checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
     
     return

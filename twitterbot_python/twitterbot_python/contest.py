@@ -2,18 +2,18 @@ import webhook_receiver
 import time
 import multiprocessing
     
-if __name__ == "__main__":
-    que = webhook_receiver.start()
+#if __name__ == "__main__":
+#    que = webhook_receiver.start()
     
-    while True:
+#    while True:
 
-        v = que.get()
+#        v = que.get()
 
-        print("v = " + str(v))
+#        print("v = " + str(v))
 
 
-    time.sleep(20)
-    print(que.qsize())
+#    time.sleep(20)
+#    print(que.qsize())
 
-    webhook_receiver.stop()
+#    webhook_receiver.stop()
     

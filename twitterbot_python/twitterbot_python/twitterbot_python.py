@@ -1,111 +1,70 @@
 import tweepy
 import time
 import utils
-import json
 import wankosobaround
+import pymongo
 import random
 import directmessage
 import timelimitround
 from datetime import datetime
 
-CONSUMER_KEY = 'kNePGOncpjWFreJ328eyYohGz'
-CONSUMER_SECRET = 'UT1iFpefTYbGfP2xL5hjGCYQnqNUku0XN3MA4Oi14nnc15WI5I'
-auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
-
-#redirect_url = auth.get_authorization_url()
-
-#print('Get your verification code from: ' + redirect_url)
-
-#verifier = input('Type the verification code: ').strip()
-
-#auth.get_access_token(verifier)
-
-print('input mode = [test:0, real:1]')
+import APIControler
 
 
-
-if int(input()) == 0:
-    ACCESS_TOKEN = '1131066930478034944-dOEypEJR06qTos6usCQpvAqIgirZS8'
-    ACCESS_SECRET = 'etEIzdmzHi99aTcgfkWmwmhEkDRbdT6r4FAc0lsaZYkmW'
-    dm_rec_id = 1131066930478034944
-else:
-    ACCESS_TOKEN = '1117739551873568768-P7YUwZGNXQJ8Y7simuiGz91RjcJ42l'
-    ACCESS_SECRET = 'bwqv9RLTVJcS0VN77RazaHKaqSXB5WYTUAbiy5ERrTZ4b'
-    dm_rec_id = 1117739551873568768
-
-auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-api = tweepy.API(auth, wait_on_rate_limit=True)
-
-dmapi = directmessage.DirectMessanger(CONSUMER_KEY,CONSUMER_SECRET,ACCESS_TOKEN,ACCESS_SECRET)
-
-print('Done!')
+ctrls = APIControler.APIControler()
 
 utils.getmentions.lastgettime = datetime(2000,10,1,0,0,0,0)
-utils.getmentions.lastid = api.mentions_timeline(count=1)[0].id
+utils.getmentions.lastid = ctrls.twapi.mentions_timeline(count=1)[0].id
 
 
 roundrange = [2,58]
 
-with open('userdata.json') as f:
-    userdata = json.load(f)
-    while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
-        utils.sleepwithlisten(api,dmapi, 1, userdata)
+while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
+    utils.sleepwithlisten(ctrls, 1)
 
 roundstart = None
 timelimit = None
 mode = None
 roundname = str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour)
 
-with open('rounds.json') as f:
-    rounds = json.load(f)
+rounddict = ctrls.db['round'].find_one({'round_num': roundname})
 
-if roundname in rounds.keys():
-    roundstart = rounds[roundname]['roundstart']
-    timelimit = datetime.strptime(rounds[roundname]['timelimit'], '%Y/%m/%d %H:%M:%S')
-    mode = rounds[roundname]['mode']
+if rounddict != None:
+    roundstart = rounddict['roundstart']
+    timelimit = datetime.strptime(rounddict['timelimit'], '%Y/%m/%d %H:%M:%S')
+    mode = rounddict['mode']
 
 while True:
     
     if roundstart == None:
         mode = ['Time-Limited', 'Wanko-Soba'][datetime.now().hour%2]
 
-        utils.absolutedofunc(api.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
+        utils.absolutedofunc(ctrls.twapi.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
         
-        with open('history.json','r') as f:
-            history = json.load(f)
-            roundstart = int(len(history) + 1)
+        roundstart = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )[0]['problem_num'] + 1
 
         roundname = str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour)
         timelimit = datetime.now()
         timelimit = datetime(timelimit.year, timelimit.month, timelimit.day, timelimit.hour, roundrange[1], 0, 0)
         
-        with open('rounds.json', 'w') as f:
-            rounds[roundname] = {}
-            rounds[roundname]['mode'] = mode
-            rounds[roundname]['roundstart'] = roundstart
-            rounds[roundname]['timelimit'] = timelimit.strftime('%Y/%m/%d %H:%M:%S')
-            json.dump(rounds,f)
+        rounddict = {}
+        rounddict['mode'] = mode
+        rounddict['roundstart'] = roundstart
+        rounddict['timelimit'] = timelimit.strftime('%Y/%m/%d %H:%M:%S')
+        rounddict['round_num'] = roundname
+        ctrls.db['round'].insert(rounddict)
             
-        with open('userdata.json', 'r') as f:
-            userdata = json.load(f)
-            for key in userdata.keys():
-                userdata[key]['roundscore'] = 0
-        with open('userdata.json', 'w') as f:
-            json.dump(userdata, f)
-
+        ctrls.db['user'].update_many({}, {'$set' : {'roundscore' : 0}})
             
     if mode == 'Wanko-Soba':
-        wankosobaround.startround(api, dmapi, roundstart, timelimit, roundname)
+        wankosobaround.startround(ctrls, roundstart, timelimit, roundname)
         
     if mode == 'Time-Limited':
-        timelimitround.startround(api, dmapi, roundstart, timelimit, roundname, dm_rec_id)
+        timelimitround.startround(ctrls, roundstart, timelimit, roundname)
 
 
     roundstart = None
     
-
-    with open('userdata.json') as f:
-        userdata = json.load(f)
-        while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
-            utils.sleepwithlisten(api,dmapi, 10, userdata)
-        
+    while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
+        utils.sleepwithlisten(ctrls, 10)
+    

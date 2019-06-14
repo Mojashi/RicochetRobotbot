@@ -3,50 +3,8 @@ import math
 import random
 import subprocess
 import sys
-import json
 import time
 import copy
-
-def GenerateImage(mp, goalpos, robotpos, mainrobot, baseimgname = ''):
-    
-    robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
-    width = robotimg[0].width
-    height = robotimg[0].height
-
-    ret = Image.new('RGB', (width * 16, height*16))
-
-    if baseimgname == '':
-        groundimg = Image.open('img/ground.png')
-        wallimg = Image.open('img/wall.png')
-        goalimg = Image.open('img/goal.png')
-        centerimg = Image.open('img/center.png');
-        
-        markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
-
-        
-        
-        for i in range(16):
-            for j in range(16):
-                if (i==7 or i==8) and (j == 7 or j == 8):
-                    ret.paste(centerimg, (i*width, j*height))
-                else:
-                    ret.paste(groundimg, (i*width, j*height))
-                    for k in range(4):
-                        if mp[i][j][k] == 1:
-                            ret.paste(wallimg.rotate(k * -90), (i*width, j*height), wallimg.rotate(k * -90).split()[3])
-
-        ret.paste(markimg[mainrobot], (int(7.5*width), int(7.5*height)), markimg[mainrobot].split()[3]);
-        ret.paste(goalimg,  (goalpos[0]*width, goalpos[1]*height), goalimg.split()[3])
-        
-        baseimg = copy.copy(ret)
-    else:
-        baseimg = Image.open(baseimgname)
-        ret = Image.open(baseimgname)
-
-    for i in range(5):
-        ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
-
-    return baseimg,ret
 
 def setwall(mp,x,y,d):
     Dir = [[0,-1],[1,0], [0,1],[-1,0]]
@@ -78,7 +36,7 @@ def solve(mp, goalpos, robotpos, mainrobot):
         print(instr)
 
         try:
-            outdata,errdata = p.communicate(input=instr.encode(), timeout=30)
+            outdata,errdata = p.communicate(input=instr.encode(), timeout=60)
         except subprocess.TimeoutExpired:
             p.kill()
             raise
@@ -110,7 +68,7 @@ def rngboard():
     setwall(mp,7,8,3);
 
 
-    elcount = random.randint(24,33)
+    elcount = random.randint(15,33)
 
     for i in range(elcount):
         x = random.randint(0, 15)
@@ -121,7 +79,7 @@ def rngboard():
     return mp
 
 
-def ProblemGenerate(fname, lowerbound):
+def ProblemGenerate(lowerbound):
     
     #while True:
     #    [y,x,d] = raw_input().split(' ')
@@ -154,16 +112,18 @@ def ProblemGenerate(fname, lowerbound):
             print("unsolvable")
     
     
-    pics = GenerateImage(mp,goalpos,robotpos,mainrobot)
-    pics[0].save(fname+'_base.png')
-    pics[1].save(fname+'.png')
+    #pics = GenerateImage(mp,goalpos,robotpos,mainrobot)
+    #pics[0].save(fname+'_base.png')
+    #pics[1].save(fname+'.png')
     
-    outdict = {"board":mp, "baseimg":fname+'_base.png',"img":fname+'.png',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"answer":answer.decode('utf-8').split('\n')}
+    ansmoves = answer.decode('utf-8').split('\n')
+    ansmoves.pop(len(ansmoves) - 1)
+    optmoves = int(ansmoves[0])
+    ansmoves.pop(0)
+    outdict = {"problem_num":-1, "used":False,"tweet_id":-1, "board":mp, "baseimg":'',"img":'',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"optimal_moves":optmoves,"answer":ansmoves}
     
-    f = open(fname + '.json', 'w')
-    json.dump(outdict,f)
-    f.close()
+    return outdict
 
 
 if __name__ == '__main__':
-    ProblemGenerate(sys.argv[1] if len(sys.argv)>1 else 'out')
+    print(ProblemGenerate(0))

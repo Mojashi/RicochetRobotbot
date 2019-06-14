@@ -1,0 +1,104 @@
+﻿<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdn.datatables.net/t/bs-3.3.6/jqc-1.12.0,dt-1.10.11/datatables.min.css" />
+    <script src="https://cdn.datatables.net/t/bs-3.3.6/jqc-1.12.0,dt-1.10.11/datatables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://rawgit.com/matfish2/vue-tables-2/master/dist/vue-tables-2.min.js"></script>
+
+    <script>
+        jQuery(function ($) {
+            $.extend($.fn.dataTable.defaults, {
+                language: {
+                    url: "http://cdn.datatables.net/plug-ins/9dcbecd42ad/i18n/Japanese.json"
+                }
+            });
+
+            $("#foo-table").DataTable();
+        });
+    </script>
+    <title></title>
+</head>
+
+<body>
+    <div id="app">
+        <div class="container">
+            <!--<table id="foo-table" class="table table-bordered table-hover table-responsive">
+        <thead>
+            <tr>
+                <th>順位</th>
+                <th>ユーザ</th>
+                <th>score</th>
+                <th v-for="i in problemnum">{{i}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="r in tableinfo">
+                <td v-for="w in r">
+                    {{w}}
+                </td>
+            </tr>
+        </tbody>
+    </table>-->
+            <v-client-table :columns="columns" :data="tableinfo" :options="options">
+            </v-client-table>
+        </div>
+    </div>
+    <script>
+        Vue.use(VueTables.ClientTable);
+        var app = new Vue({
+            el: '#app',
+            data: {
+                usernum: 0,
+                problemnum:0,
+                tableinfo: [],
+                columns: [
+                    'rank','user','score'
+                ],
+                options: {
+                    headings: {
+                        'rank': '順位',
+                        'user': 'ユーザ',
+                        'score': 'score'
+                    }
+                }
+            },
+            mounted() {
+                axios
+                    .get("https://spreadsheets.google.com/feeds/cells/1blK7Tkf5tTK1OfaUdwOkYU-nDB6XWkwwy5ZODgA8sTs/od6/public/values?alt=json")
+                    .then(response => {
+                        dict = {}
+                        for (let v of response.data.feed.entry) {
+                            if(typeof(dict[parseInt(v['gs$cell']['row'])]) != "object")
+                                dict[parseInt(v['gs$cell']['row'])] = {}
+                            dict[parseInt(v['gs$cell']['row'])][parseInt(v['gs$cell']['col'])] = v['gs$cell']['$t']
+                        }
+
+                        this.usernum = parseInt(dict[1][1])
+                        this.problemnum = parseInt(dict[1][2])
+
+                        for (let i = 0; i < this.problemnum; i++) {
+                            this.columns.push(String.fromCharCode(65 + i))
+                            this.options.headings[String.fromCharCode(65)]=String.fromCharCode(65)
+                        }
+
+
+                        for (let i = 0; i < this.usernum; i++) {
+                            this.tableinfo.splice(i, 0, {})
+                            for (let j = 0; j < this.problemnum + 3; j++) {
+                                y = i + 2
+                                x = j + 1
+
+                                this.tableinfo[i][this.columns[j]] = dict[y][x]
+                            }
+                            
+                        }
+                    })
+                console.log("hey")
+            }
+        });
+
+    </script>
+</body>
+</html>

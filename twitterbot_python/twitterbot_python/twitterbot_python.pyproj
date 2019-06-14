@@ -24,6 +24,9 @@
     <Compile Include="contest.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="APIControler.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="directmessage.py">
       <SubType>Code</SubType>
     </Compile>

@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "stalwart-cable-180813",
+  "private_key_id": "bec28df6f14f53ae76d1db8e3bf912406abbdb82",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCdh6xep6yeFGK/\nVD9wRwRfGz8ed+RDZUUPxYZRA8VI1JAvlfjn7m6Ax+k9MBSJUO4P8b/zZp1pB7yX\nbjaz9AMJ6AW/hfg53a5N2kXziRznhpU3oOWe1hjqrmVbIVH4iAH5EEwnpfyxHFwY\nfb3GT5n2SCd3NorkwlFUErv97rKMbH0DsyqRjIw+daS9F4N/cXdiSB4yV60YnGBj\nEMzOffF2TAtHYWB+bXLSjWIcjbO2LYfR81oZ3qpyVpxGn8pB1VL4lrraFwdr+ezI\n96RVdB4y/bZbGz52dW6B5nRqiEt6fxqn3Z2dtCFHDqmw1/V1OR0jzKPK6cowvDJG\nQX6B34SXAgMBAAECggEAIq+xmiQEg8hMWAG2eEQC5+gpdU2D4v0lAEyHf0Y7xgYb\n+4ZjyLn89flO16zDENtTmAossG0bYvmToqpffC9SDffbcCkRF7jCvRy/Q1khFq/R\nIm8YsGlHEkG1SqQjFvznpk5a3m4TnnH2q2Pgig6UAaEwo3TMj4NkAgWgBFFvWjDe\nw+SIIb/iFUpo4voSqx0I1GuvCZGEia1uBa3mkKYaCnpySr6PpyvmPcbe6r8OQvYF\nbVhvYwXwB7opmhfGfWpaJBOr+ygrN02K1uDA84NU2S6+JL5wl8Lm2WmX3EJBwVgD\nY37LnpD8Yo3YBhJRsw3+6VJDOUnXvS4eh2uoctDmfQKBgQDJ+U5UTngB40I+SPKY\n9o+CDCHr/JNFiI6a1CZR+IOQRsxhkpCckaCE/mpyphPjXqN/A5dvvZO8n0RVDA9/\n69ZQ1qMPEC1sBduZBsKLCUG1TJfXMiiJoSLzxnITBsPgiwsjhJfHAmW5olIOl3tc\nmR/ralPaN4EvDhfllOaxDuxpMwKBgQDHqvSIPFIp/QbsIM0rp9p7Ww3beUSIAY5i\nd+rJM8tNeYmjEW5KkasL+ZoOs4Lw518qzHaZ+vtfQuSypCNEOJXunqIgjspnfddm\nOkM5GeF0bk3T9Q52vS/N4kVtF42ivoeU+ONgzigdDdotabN1C2YyOXbcnnfslsxc\ns97YXlsfDQKBgDVB0N64JjrRMwl7cMTW1vaCvnscibTfEkNPR597uS1VDdV4sTsn\nxzzqXSVIF5xvuwrl5ounYIpvMLSATqH7jPKZ9jsll+SREtuiBbBly3bD8JHk/v1z\niOTg4fmUYhgWceR2tRLb1fkCDUMdvICpO9p2mg/DbQP8Yl6+SapMdhgzAoGAFmI4\n5aj1gRWHmCMZPSKlIJ0VkZwnraOXBbzxyjqPORE999T1a1CnP0FtHubK8BzQE2k2\nho6XbZd/MfOqrHQ3grev7zxyvmViJ2iyro0TNE1FVlSrmW4eFNOf+tngG/WGF5JL\nU0fpQVCTO/IUlzN+8nR0ucjeItzI7j+P5Ou3BWUCgYAbJeTrEn+3aJXKIN4xIxKO\nHoSpDOdxzMrvMDMMXHPA81MFpCNkxmcqyoVUuv5Jp9aNvnnhE/cICeGEJg7aguEE\nNIjOnagXSb9MKItelTUqHbGTD9fwi17CFPbweLmQK1AxVcQq4wH+ujn1yWGFH33b\nFlj7TjZ65hOXp+wW4ntKQg==\n-----END PRIVATE KEY-----\n",
+  "client_email": "ricochetrobots@stalwart-cable-180813.iam.gserviceaccount.com",
+  "client_id": "103833668565345686636",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ricochetrobots%40stalwart-cable-180813.iam.gserviceaccount.com"
+}

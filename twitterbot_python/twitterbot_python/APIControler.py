@@ -12,6 +12,10 @@ from imgurpython import ImgurClient
 import pymongo
 import utils
 import directmessage
+from oauth2client.service_account import ServiceAccountCredentials
+from httplib2 import Http
+import gspread
+
 
 class APIControler:
     def __init__(self):
@@ -55,6 +59,16 @@ class APIControler:
 
         utils.setdefaultcollection(self)
 
+        scopes = ['https://www.googleapis.com/auth/spreadsheets']
+        json_file = 'My Project-bec28df6f14f.json'#OAuth用クライアントIDの作成でダウンロードしたjsonファイル
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(json_file, scopes=scopes)
+        http_auth = credentials.authorize(Http())
+        
+        # スプレッドシート用クライアントの準備
+        doc_id = '1blK7Tkf5tTK1OfaUdwOkYU-nDB6XWkwwy5ZODgA8sTs'#これはスプレッドシートのURLのうちhttps://docs.google.com/spreadsheets/d/以下の部分です
+        client = gspread.authorize(credentials)
+        gfile   = client.open_by_key(doc_id)#読み書きするgoogle spreadsheet
+        worksheet  = gfile.sheet1
     
     def getuser(self,user_id_str):
         return self.db['user'].find_one({'user_id' : user_id_str})

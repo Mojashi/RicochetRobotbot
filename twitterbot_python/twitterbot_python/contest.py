@@ -39,7 +39,7 @@ def tweetcontestresult(ctrls, user_got_scores, contest_num):
     
     return
 
-def update_rating(ctrls, user_got_scores):
+def update_rating(ctrls, user_got_scores, contest_num):
     ratedrankmemo = {}
     
     def getRatedRank(X):
@@ -82,6 +82,10 @@ def update_rating(ctrls, user_got_scores):
             rank = cnt
 
         perf = inner_perf(rank)
+
+        if contest_num == 1:
+            perf = (perf - 1200) * 1.5 + 1200
+
         ctrls.db['user'].update_one({'user_id' : usr[0]}, {'$addToSet' : {'performance_history': perf}})
 
         bef = usr[1]
@@ -108,9 +112,9 @@ def update_rating(ctrls, user_got_scores):
         rating = rating - 1200 * (math.sqrt(1 - math.pow(0.81, partc)) / (1 - math.pow(0.9, partc)) - 1) / (math.sqrt(19.0) - 1)
         
         if rating <= 400:
-            rating = math.exp(400 / ((400 - rating) / 400))
+            rating = 400 / math.exp((400 - rating) / 400)
             
-        ctrls.db['user'].update_one({'user_id' : item[0]}, {'$set' : {'inner_rating' : rating}})
+        ctrls.db['user'].update_one({'user_id' : item[0]}, {'$set' : {'inner_rating' : inner_rating}})
         ctrls.db['user'].update_one({'user_id' : item[0]}, {'$set' : {'rating' : rating}})
 
 def update_ranking(ctrls, user_got_scores):
@@ -322,7 +326,7 @@ def maincycle(ctrls, contest_num):
         for i in range(contest_problem_num):
             ctrls.db['user'].update({'user_id':key}, {'$inc' : {'roundscore': user_got_scores[key][i]}})
         
-    update_rating(ctrls, user_got_scores)
+    update_rating(ctrls, user_got_scores, contest_num)
     tweetcontestresult(ctrls,user_got_scores,contest_num)
     #checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
     

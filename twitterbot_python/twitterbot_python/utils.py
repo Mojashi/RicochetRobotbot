@@ -249,7 +249,7 @@ def setdefaultuser(ctrls, user_id_str, screen_name=''):
          'history':[], 
          'keyconfig':{'u':0,'r':1,'d':2,'l':3}, 
          'roundscore':0,
-         'inner_rating':0,
+         'inner_rating':1200,
          'rating':0,
          'performance_history':[],
          'contest_history':[]}}, upsert = True)

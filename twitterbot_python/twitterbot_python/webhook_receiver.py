@@ -137,7 +137,7 @@ def run(que_al, ctrls_al):
     ssl_context.load_cert_chain(
         'openssl/fullchain.pem', 'openssl/privkey.pem'
     )
-    app.run(host='0.0.0.0', port=443, ssl_context=ssl_context, threaded=True, debug=False)
+    app.run(host='0.0.0.0', port=443, ssl_context=ssl_context, threaded=False, debug=False)
     return
 
 def start(ctrls_al):

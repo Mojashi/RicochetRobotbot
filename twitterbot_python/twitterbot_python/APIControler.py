@@ -20,9 +20,9 @@ import gspread
 
 class APIControler:
     def __init__(self):
-        CONSUMER_KEY = 'kNePGOncpjWFreJ328eyYohGz'
-        CONSUMER_SECRET = 'UT1iFpefTYbGfP2xL5hjGCYQnqNUku0XN3MA4Oi14nnc15WI5I'
-        auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
+        self.CONSUMER_KEY = 'kNePGOncpjWFreJ328eyYohGz'
+        self.CONSUMER_SECRET = 'UT1iFpefTYbGfP2xL5hjGCYQnqNUku0XN3MA4Oi14nnc15WI5I'
+        auth = tweepy.OAuthHandler(self.CONSUMER_KEY, self.CONSUMER_SECRET)
         
         #redirect_url = auth.get_authorization_url()
         
@@ -36,15 +36,15 @@ class APIControler:
         istest = int(input())
 
         if istest == 0:
-            ACCESS_TOKEN = '1131066930478034944-dOEypEJR06qTos6usCQpvAqIgirZS8'
-            ACCESS_SECRET = 'etEIzdmzHi99aTcgfkWmwmhEkDRbdT6r4FAc0lsaZYkmW'
+            self.ACCESS_TOKEN = '1131066930478034944-dOEypEJR06qTos6usCQpvAqIgirZS8'
+            self.ACCESS_SECRET = 'etEIzdmzHi99aTcgfkWmwmhEkDRbdT6r4FAc0lsaZYkmW'
             self.dm_rec_id = 1131066930478034944
         else:
-            ACCESS_TOKEN = '1117739551873568768-P7YUwZGNXQJ8Y7simuiGz91RjcJ42l'
-            ACCESS_SECRET = 'bwqv9RLTVJcS0VN77RazaHKaqSXB5WYTUAbiy5ERrTZ4b'
+            self.ACCESS_TOKEN = '1117739551873568768-P7YUwZGNXQJ8Y7simuiGz91RjcJ42l'
+            self.ACCESS_SECRET = 'bwqv9RLTVJcS0VN77RazaHKaqSXB5WYTUAbiy5ERrTZ4b'
             self.dm_rec_id = 1117739551873568768
         
-        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+        auth.set_access_token(self.ACCESS_TOKEN, self.ACCESS_SECRET)
         self.twapi = tweepy.API(auth, wait_on_rate_limit=True)
         
         
@@ -70,10 +70,10 @@ class APIControler:
         http_auth = credentials.authorize(Http())
         
         # スプレッドシート用クライアントの準備
-        doc_id = '1blK7Tkf5tTK1OfaUdwOkYU-nDB6XWkwwy5ZODgA8sTs'#これはスプレッドシートのURLのうちhttps://docs.google.com/spreadsheets/d/以下の部分です
-        client = gspread.authorize(credentials)
-        gfile   = client.open_by_key(doc_id)#読み書きするgoogle spreadsheet
-        worksheet  = gfile.sheet1
+        self.doc_id = '1blK7Tkf5tTK1OfaUdwOkYU-nDB6XWkwwy5ZODgA8sTs'#これはスプレッドシートのURLのうちhttps://docs.google.com/spreadsheets/d/以下の部分です
+        self.gclient = gspread.authorize(credentials)
+        self.gfile   = self.gclient.open_by_key(self.doc_id)#読み書きするgoogle spreadsheet
+        self.worksheet  = self.gfile.sheet1
     
     def getuser(self,user_id_str):
         return self.db['user'].find_one({'user_id' : user_id_str})

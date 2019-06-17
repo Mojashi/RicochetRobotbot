@@ -9,7 +9,6 @@ from datetime import datetime
 from imgurpython import ImgurClient
 import random
 import utils
-from datetime import datetime
 import APIControler
 
 def tweetnewproblem(ctrls):

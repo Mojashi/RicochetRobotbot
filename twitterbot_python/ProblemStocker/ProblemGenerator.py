@@ -14,7 +14,7 @@ def setwall(mp,x,y,d):
         mp[nex[0]][nex[1]][(d+2)%4] = 1
 
         
-def solve(mp, goalpos, robotpos, mainrobot):
+def solve(mp, goalpos, robotpos, mainrobot, timeout_sec):
     with subprocess.Popen("solver.exe", stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
         instr = ""
 
@@ -36,7 +36,7 @@ def solve(mp, goalpos, robotpos, mainrobot):
         print(instr)
 
         try:
-            outdata,errdata = p.communicate(input=instr.encode(), timeout=60)
+            outdata,errdata = p.communicate(input=instr.encode(), timeout=timeout_sec)
         except subprocess.TimeoutExpired:
             p.kill()
             raise
@@ -79,7 +79,7 @@ def rngboard():
     return mp
 
 
-def ProblemGenerate(lowerbound):
+def ProblemGenerate(lowerbound, timeout):
     
     #while True:
     #    [y,x,d] = raw_input().split(' ')
@@ -103,7 +103,7 @@ def ProblemGenerate(lowerbound):
         mainrobot = random.randint(0,4)
        
         try:
-            answer = solve(mp,goalpos, robotpos,mainrobot)
+            answer = solve(mp,goalpos, robotpos,mainrobot,timeout)
             if int(answer.decode('utf-8').split('\n')[0]) <= lowerbound:
                 print("too short")
                 continue

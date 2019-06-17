@@ -1,64 +1,74 @@
 import time
-import multiprocessing
+import threading
 from flask import Flask, request
 import base64
 import hashlib
 import hmac
+import copy
 import json
 import urllib.parse
 from requests_oauthlib import OAuth1Session
 import requests
 import APIControler
+import twitterbot_python
+import queue
+import ssl
 
 app = Flask(__name__)
 
-env_name = "mojashdev"
-my_ip = None
+env_name = "mojashidev"
 webhook_id = None
+ctrls = None
+que = queue.Queue()
 
-que = multiprocessing.Queue()
-ctrl = None
 
-def get_myip():
-    res = requests.get("http://inet-ip.info/ip")
-    my_ip = res.text
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
 
-@app.url_value_preprocessor
-def add_user_info(endpoint, values):
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    print(request.data)
+    if request.data == b'asdiasjdasjddjjsaiioadsiojdosaidjasiod':
+        shutdown_server()
+    return 'Server shutting down...'
+
+
+@app.route('/.well-known/acme-challenge/GA5LMZyE3ZRmkugjZneTxb5aZCHH4645k6oKhD9Hg0A', methods = ['GET'])
+def validcheck():
+   
+    return 'GA5LMZyE3ZRmkugjZneTxb5aZCHH4645k6oKhD9Hg0A.vxOGVPt2v_GkQ3TLSxaxf7XyVCUVJchkEzdhj-KzvQI', 200, {'Content-Type': 'text/plain'}
+
+@app.route('/index.html', methods = ['GET'])
+def getpage():
+   
+    return 'Hello World', 200, {'Content-Type': 'text/plain'}
+
+
+@app.route('/webhook/twitter', methods = ['GET'])
+def get_crc():
+    global ctrls
+    if 'crc_token' in request.args and len(request.args.get('crc_token')) == 48:
+        crc_token = request.args.get('crc_token')
+        sha256_hash_digest = hmac.new(ctrls.CONSUMER_SECRET.encode(), msg = crc_token.encode(), digestmod = hashlib.sha256).digest()
+
+        response_token = 'sha256=' + base64.b64encode(sha256_hash_digest).decode()
+        response = {'response_token': response_token}
+
+        return json.dumps(response), 200, {'Content-Type': 'application/json'}
+
+    return 'No Content', 204, {'Content-Type': 'text/plain'}
+
+@app.route('/webhook/twitter',methods=['POST'])
+def index():
     global que
-    if not endpoint is None:
-        values["que"] = que
-
-# Defines a route for the GET request
-@app.route('/webhooks/twitter', methods=['GET'])
-def webhook_challenge():
-    global ctrl
-
-    # creates HMAC SHA-256 hash from incomming token and your consumer secret
-    sha256_hash_digest = hmac.new(ctrl.CONSUMER_SECRET, msg=request.args.get('crc_token'), digestmod=hashlib.sha256).digest()
-    
-    # construct response data with base64 encoded hash
-    response = {
-      'response_token': 'sha256=' + base64.b64encode(sha256_hash_digest)
-    }
-    
-    # returns properly formatted json response
-    return json.dumps(response)
-
-@app.route('/webhooks/twitter',methods=['POST'])
-def index(que):
-    if request.headers['Content-Type'] != 'application/json':
-        if "direct_message_events" in json.loads(request.json).key():
+    if request.headers['Content-Type'] == 'application/json':
+        if "direct_message_events" in request.json.keys():
             que.put(request.json)
-        print(request.json)
+            print('DM')
     return "OK"
-
-def run(que_al, ctrl_al):
-    global ctrl
-    global que
-    ctrl = ctrl_al
-    que = que_al
-    api.run(host='0.0.0.0', port=443, ssl_context=('openssl/server.crt', 'openssl/server.key'), threaded=False, debug=True)
 
     #app.run(debug=False, host="0.0.0.0", port = 80)
 
@@ -71,29 +81,35 @@ def getmsgs():
     msgs = []
 
 
-    while que.not_empty():
+    while que.empty() == False:
+        print('get')
         msgs.extend(que.get()["direct_message_events"])
-    
+    print('empty')
     return msgs
 
 def subscribe(ctrls):
     global webhook_id
-
-    my_url = my_ip + "443"
-    sub_url = "https://api.twitter.com/1.1/account_activity/all/" + env_name + "/webhooks.json?url=" +urllib.parse.quote(my_url)
+    my_url = 'https://ricochetrobots.mojashidev.xyz/webhook/twitter'
+    sub_url = "https://api.twitter.com/1.1/account_activity/all/" + env_name + "/webhooks.json?url=" +urllib.parse.quote(my_url,safe='')
 
     
-    req = ctrls.twitter.post(url=sub_url)
+    #req = ctrls.oauth_twitter.post(url=sub_url)
 
-    if req.status_code == 200:
-        print ("subscribed")
-    else:
-        print("subscribe failed")
+    #if req.status_code == 200:
+    #    print ("subscribed")
+    #else:
+    #    print(req)
+    #    print("subscribe failed")
+    #    #return
 
-    webhook_id = req.json()["id"]
+    webhook_id = ctrls.oauth_twitter.get(url = 'https://api.twitter.com/1.1/account_activity/all/webhooks.json').json()["environments"][0]['webhooks'][0]['id']
     
-    sub_url  ="https://api.twitter.com/1.1/account_activity/all/" + env_name + "/subscriptions.json"
-    req = ctrls.twitter.post(url = sub_url)
+    unsub_url = "https://api.twitter.com/1.1/account_activity/all/"+env_name+"/webhooks/"+ str(webhook_id) + ".json"
+    
+    req = ctrls.oauth_twitter.put(url = unsub_url)
+
+    #sub_url  ="https://api.twitter.com/1.1/account_activity/all/" + env_name + "/subscriptions.json"
+    #req = ctrls.oauth_twitter.post(url = sub_url)
 
     return 
 
@@ -102,15 +118,29 @@ def unsubscribe(ctrls):
 
     unsub_url = "https://api.twitter.com/1.1/account_activity/all/"+env_name+"/subscriptions.json"
 
-    ctrls.twitter.delete(url = unsub_url)
+    ctrls.oauth_twitter.delete(url = unsub_url)
 
     unsub_url = "https://api.twitter.com/1.1/account_activity/all/"+env_name+"/webhooks/"+ str(webhook_id) + ".json"
     
-    ctrls.twitter.delete(url = unsub_url)
+    ctrls.oauth_twitter.delete(url = unsub_url)
 
     return
 
-def start(ctrl):
+
+def run(que_al, ctrls_al):
+    global ctrl
+    global que
+    print("start hook")
+    ctrl = ctrls_al
+    que = que_al
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    ssl_context.load_cert_chain(
+        'openssl/fullchain.pem', 'openssl/privkey.pem'
+    )
+    app.run(host='0.0.0.0', port=443, ssl_context=ssl_context, threaded=True, debug=False)
+    return
+
+def start(ctrls_al):
     global running
     global server
     global que
@@ -118,21 +148,19 @@ def start(ctrl):
     if running == True:
         return que
 
-    running = False
+    running = True
 
-
-    print("starting process")
-    server = multiprocessing.Process(target=run, args=(que,ctrl,))
+    server = threading.Thread(target=run, kwargs={'que_al':que,'ctrls_al':ctrls_al})
     server.start()
 
-    time.sleep(1)
+    time.sleep(5)
     
-    subscribe(ctrls)
+    subscribe(ctrls_al)
 
     return que
 
 
-def stop():
+def stop(ctrls):
     global running
     global server
 
@@ -141,9 +169,10 @@ def stop():
 
     running = False
 
-    unsubscribe(ctrls)
+    #unsubscribe(ctrls)
 
-    server.terminate()
+    requests.post('https://ricochetrobots.mojashidev.xyz/shutdown', b'asdiasjdasjddjjsaiioadsiojdosaidjasiod')
+
     server.join()
 
     print("bye...")
@@ -152,6 +181,6 @@ def stop():
 if __name__ == "__main__":
     ctrls = APIControler.APIControler()
     que = start(ctrls)
-    time.sleep(100)
+    time.sleep(1333330)
     print(que.qsize())
-    stop()
+    stop(ctrls)

@@ -1,18 +1,38 @@
 ﻿{
+  "ALIEN": {
+    "range": [ 3200, 9999 ],
+    "deco": "👾 %user"
+  },
   "Grand Master": {
-    "range": [ 1, 1 ],
-    "deco": "👑 %user"
+    "range": [ 2800, 3199 ],
+    "deco": "🦀 %user"
   },
   "Master": {
-    "range": [ 2, 3 ],
-    "deco": "🏅 %user"
+    "range": [ 2400, 2799 ],
+    "deco": "🦊 %user"
+  },
+  "a": {
+    "range": [ 2000, 2399 ],
+    "deco": "🦁 %user"
+  },
+  "FISH": {
+    "range": [ 1600, 1999 ],
+    "deco": "🐳 %user"
+  },
+  "DROPLET": {
+    "range": [ 1200, 1599 ],
+    "deco": "🐟 %user"
+  },
+  "": {
+    "range": [ 800, 1199 ],
+    "deco": "🦎 %user"
   },
   "Guru": {
-    "range": [ 4, 6 ],
-    "deco": "🌟 %user"
+    "range": [ 400, 799 ],
+    "deco": "🦌 %user"
   },
-  "Specialist": {
-    "range": [ 7, 10 ],
-    "deco": "✨ %user"
+  "SHAM": {
+    "range": [ 0, 399 ],
+    "deco": "🦏 %user"
   }
 }

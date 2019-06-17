@@ -9,11 +9,13 @@ import random
 import re
 from PIL import Image
 from datetime import datetime
+from datetime import timedelta
 from imgurpython import ImgurClient
 import pymongo
 import directmessage
 
 import APIControler
+
 
 def absolutedofunc(func, *args, **kwargs):
     while True:
@@ -36,7 +38,7 @@ def absolutedofunc(func, *args, **kwargs):
     return
 
 def convert_timestamp(timestamp):
-    return datetime.fromtimestamp(timestamp) + datetime.timedelta(hours = 9)
+    return datetime.fromtimestamp(timestamp) + timedelta(hours = 9)
 
 
 
@@ -86,12 +88,11 @@ def decoratename(ctrls, userid_str, username = ''):
     if username == '':
         username = user['screen_name']
 
-    userrank = getrank(ctrls,userid_str, 'pointsum.Wanko-Soba')
-
+    rating = user['rating']
     with open('decorate.json',encoding="utf-8_sig") as f:
         decorate = json.load(f)
         for v in decorate.values():
-            if v['range'][0] <= userrank and v['range'][1] >= userrank:
+            if v['range'][0] <= rating and v['range'][1] >= rating:
                 return v['deco'].replace('%user', username)
     return username
 
@@ -247,7 +248,11 @@ def setdefaultuser(ctrls, user_id_str, screen_name=''):
          'screen_name':screen_name,
          'history':[], 
          'keyconfig':{'u':0,'r':1,'d':2,'l':3}, 
-         'roundscore':0}}, upsert = True)
+         'roundscore':0,
+         'inner_rating':0,
+         'rating':0,
+         'performance_history':[],
+         'contest_history':[]}}, upsert = True)
 
 
 def setdefaultcollection(ctrls):
@@ -270,7 +275,8 @@ def commandproc(ctrls, stat, fr=-1):
     if args[0] == '!myrank':
         setdefaultuser(ctrls, stat.user.id_str, stat.user.screen_name)
         absolutedofunc(ctrls.twapi.update_status,
-                       'Wanko-Soba: ' + str(ctrls.getuser(stat.user.id_str)['pointsum']['Wanko-Soba']) + 'pt Rank' + str(getrank(ctrls, stat.user.id_str, 'pointsum.Wanko-Soba')) + 
+                       'Rating: ' + str(ctrls.getuser(stat.user.id_str)['rating']) + ' Rank' + str(getrank(ctrls, stat.user.id_str, 'rating')) + 
+                       '\nWanko-Soba: ' + str(ctrls.getuser(stat.user.id_str)['pointsum']['Wanko-Soba']) + 'pt Rank' + str(getrank(ctrls, stat.user.id_str, 'pointsum.Wanko-Soba')) + 
                        '\nTime-Limited: ' + str(ctrls.getuser(stat.user.id_str)['pointsum']['Time-Limited']) + 'pt Rank' + str(getrank(ctrls, stat.user.id_str, 'pointsum.Time-Limited'))
                        , in_reply_to_status_id=stat.id, auto_populate_reply_metadata=True)
     
@@ -289,6 +295,9 @@ def commandproc(ctrls, stat, fr=-1):
             elif args[1] == 'timelimited':
                 tweetoverallranking(ctrls, 'Time-Limited Ranking', 'pointsum.Time-Limited', reply_id = stat.id)
         
+            elif args[1] == 'rating':
+                tweetoverallranking(ctrls, 'Rating Ranking', 'rating', reply_id = stat.id)
+
             elif fr != -1 and args[1] == 'round':
                 tweethourlyranking(ctrls, fr, reply_id = stat.id)
 

@@ -143,6 +143,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     answer = cdict['answer']
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
+    optimal_moves = cdict['optimal_moves']
     
     start_time = datetime.now()
 
@@ -159,11 +160,11 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
     #utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    que = webhook_receiver.start()
+    que = webhook_receiver.start(ctrls)
 
     while True:
 
-        while que.not_empty():
+        while que.empty() == False:
             msgs = webhook_receiver.getmsgs()
             for msg in msgs:
                 
@@ -171,10 +172,10 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
                 if str(msg['message_create']['sender_id']) == str(ctrls.dm_rec_id):
                     continue
                 
-                
-                elapsed_sec = (utils.conver_timestamp(int(msg['created_timestamp']) / 1000) - start_time).total_seconds()
+                current_time =datetime.fromtimestamp(int(msg['created_timestamp']) / 1000)#utils.convert_timestamp(int(msg['created_timestamp']) / 1000)
+                elapsed_sec = (current_time - start_time).total_seconds()
 
-                print(msg)
+                print(msg['message_create']['message_data']['text'])
 
                 text = msg['message_create']['message_data']['text']
                 user_id_str = str(msg['message_create']['sender_id'])
@@ -200,17 +201,17 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
                     if waycou != -1:
                         
                         point = max(1, int((point_rate[0] * (problem_length - elapsed_sec) + point_rate[1] * elapsed_sec) / problem_length * math.pow(0.5, waycou - optimal_moves)))
-
-                        ctrls.dmapi.send_dm(user_id_str, "Accepted!(" + str(waycou) + "moves " + str(point) + "pt).\nYour current score is " + str(user_got_score[user_id_str]) + "pt")
                         user_got_score[user_id_str] = max(point , user_got_score[user_id_str])
+                        ctrls.dmapi.send_dm(user_id_str, "Accepted!(" + str(waycou) + "moves " + str(elapsed_sec) + "sec " + str(point) + "pt).\nYour current score is " + str(user_got_score[user_id_str]) + "pt")
+                        
 
-                    else:
-                        ctrls.dmapi.send_dm(user_id_str, "Wrong Answer.")
-                else:
-                    ctrls.dmapi.send_dm(user_id_str, "Invalid format.")
+                #    else:
+                #        ctrls.dmapi.send_dm(user_id_str, "Wrong Answer.")
+                #else:
+                #    ctrls.dmapi.send_dm(user_id_str, "Invalid format.")
 
 
-        if elapsed_sec >= problem_length:
+        if (datetime.now() - start_time).total_seconds() >= problem_length:
             break;
             
         utils.sleepwithlisten(ctrls, 1, roundstart)
@@ -224,4 +225,6 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
 
     #checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
     
+    webhook_receiver.stop(ctrls)
+
     return

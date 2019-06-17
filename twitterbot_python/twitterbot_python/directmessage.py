@@ -66,7 +66,8 @@ class DirectMessanger:
                 self.twitter = OAuth1Session(self.CONSUMER_KEY, self.CONSUMER_SECRET,self.ACCESS_TOKEN,self.ACCESS_SECRET)
 
         if ret.status_code != 200:
-                raise self.BadRequest()
+            print('failed send dm')
+            return
 
         jsn = json.loads(ret.text)
         return jsn['event']['created_timestamp']

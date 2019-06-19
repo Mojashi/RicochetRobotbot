@@ -22,7 +22,7 @@ if __name__ == '__main__':
     utils.getmentions.lastid = ctrls.twapi.mentions_timeline(count=1)[0].id
     
     
-    roundrange = [2,58]
+    roundrange = [1,58]
     
     while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
         utils.sleepwithlisten(ctrls, 1)
@@ -56,7 +56,8 @@ if __name__ == '__main__':
             if mode == None:
                 mode = ['Time-Limited', 'Wanko-Soba', 'Contest'][datetime.now().hour%2]
     
-            utils.absolutedofunc(ctrls.twapi.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
+            if mode != 'Contest':
+                utils.absolutedofunc(ctrls.twapi.update_status, mode + ' Round ' + str(datetime.now().year) + str(datetime.now().month) + str(datetime.now().day) + str(datetime.now().hour))
             
             roundstart = list(ctrls.db['problem'].find({'used' : True}).sort('problem_num', direction=pymongo.DESCENDING) )[0]['problem_num'] + 1
     

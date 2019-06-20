@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RicochetRobotSolver", "Rico
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "SolverChecker", "SolverChecker\SolverChecker.pyproj", "{60294063-F7F9-4AC3-A314-0A950AE03927}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RicochetRobotSolver_G", "RicochetRobotSolver_G\RicochetRobotSolver_G.vcxproj", "{005C4905-7D04-4D6F-9818-ABE2F2203EAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,16 @@ Global
 		{60294063-F7F9-4AC3-A314-0A950AE03927}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{60294063-F7F9-4AC3-A314-0A950AE03927}.Release|x64.ActiveCfg = Release|Any CPU
 		{60294063-F7F9-4AC3-A314-0A950AE03927}.Release|x86.ActiveCfg = Release|Any CPU
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Debug|x64.ActiveCfg = Debug|x64
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Debug|x64.Build.0 = Debug|x64
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Debug|x86.ActiveCfg = Debug|Win32
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Debug|x86.Build.0 = Debug|Win32
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Release|Any CPU.ActiveCfg = Release|Win32
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Release|x64.ActiveCfg = Release|x64
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Release|x64.Build.0 = Release|x64
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Release|x86.ActiveCfg = Release|Win32
+		{005C4905-7D04-4D6F-9818-ABE2F2203EAA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -79,7 +79,7 @@ def rngboard():
     return mp
 
 
-def ProblemGenerate(lowerbound, timeout):
+def ProblemGenerate(lowerbound, timeout, torus = False, Mirror = False):
     
     #while True:
     #    [y,x,d] = raw_input().split(' ')

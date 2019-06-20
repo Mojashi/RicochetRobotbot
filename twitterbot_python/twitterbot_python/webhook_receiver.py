@@ -107,7 +107,7 @@ def subscribe(ctrls):
     unsub_url = "https://api.twitter.com/1.1/account_activity/all/"+env_name+"/webhooks/"+ str(webhook_id) + ".json"
     
     req = ctrls.oauth_twitter.put(url = unsub_url)
-
+    print('subed')
     #sub_url  ="https://api.twitter.com/1.1/account_activity/all/" + env_name + "/subscriptions.json"
     #req = ctrls.oauth_twitter.post(url = sub_url)
 
@@ -130,9 +130,9 @@ def unsubscribe(ctrls):
 def run(que_al, ctrls_al):
     global ctrl
     global que
-    print("start hook")
     ctrl = ctrls_al
     que = que_al
+    print("start hook")
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     ssl_context.load_cert_chain(
         'openssl/fullchain.pem', 'openssl/privkey.pem'
@@ -144,7 +144,8 @@ def start(ctrls_al):
     global running
     global server
     global que
-
+    global ctrls
+    ctrls = ctrls_al
     if running == True:
         return que
 
@@ -153,7 +154,7 @@ def start(ctrls_al):
     server = threading.Thread(target=run, kwargs={'que_al':que,'ctrls_al':ctrls_al})
     server.start()
 
-    time.sleep(5)
+    time.sleep(7)
     
     subscribe(ctrls_al)
 

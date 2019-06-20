@@ -8,7 +8,7 @@ import os
 import math
 from datetime import datetime
 
-contest_problem_num = 3
+contest_problem_num = 7
 
 def tweetcontestresult(ctrls, user_got_scores, contest_num):
     
@@ -114,6 +114,9 @@ def update_rating(ctrls, user_got_scores, contest_num):
         if rating <= 400:
             rating = 400 / math.exp((400 - rating) / 400)
             
+        rating = int(rating)
+        inner_rating = int(inner_rating)
+
         ctrls.db['user'].update_one({'user_id' : item[0]}, {'$set' : {'inner_rating' : inner_rating}})
         ctrls.db['user'].update_one({'user_id' : item[0]}, {'$set' : {'rating' : rating}})
 
@@ -145,7 +148,7 @@ def update_ranking(ctrls, user_got_scores):
         if bef != usr[1]:
             rank = cnt
         table[cnt + 1][1] = rank
-        table[cnt + 1][2] = ctrls.getuser(usr[0])['screen_name']
+        table[cnt + 1][2] = utils.decoratename(ctrls, usr[0])
         table[cnt + 1][3] = usr[1]
         for i in range(contest_problem_num):
             table[cnt + 1][4 + i] = user_got_scores[usr[0]][i]
@@ -209,14 +212,19 @@ def maincycle(ctrls, contest_num):
     user_got_scores = {}
     assumed_solutions = []
 
-    timelimit = 30
+    timelimit = 60 * 30
 
     point_rate = [100, 60]
     
     start_time = datetime.now()
+    
 
+    que = webhook_receiver.start(ctrls)
+
+    existinground = False
 
     if os.path.exists('contest_temp.json'):
+        existinground = True
         with open('contest_temp.json') as f:
             jsnn = json.load(f)
             problem_nums = jsnn['problem_nums']
@@ -241,7 +249,9 @@ def maincycle(ctrls, contest_num):
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
     #utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    que = webhook_receiver.start(ctrls)
+    if existinground == False:
+        utils.absolutedofunc(ctrls.twapi.update_status, status='RicochetRobotsContest' + str(contest_num) + '\n制限時間は' + str(timelimit / 60) + '分です\nランキングがhttps://mojashi.github.io/RicochetRobotsRanking/で閲覧できます')
+    
 
     while True:
 
@@ -292,8 +302,10 @@ def maincycle(ctrls, contest_num):
                 if user_id_str not in user_got_scores.keys():
                     user_got_scores[user_id_str] = [0,0,0,0,0,0,0,0,0,0]
 
-                ways = utils.parsetext(text.split(':')[1], ctrls.getuser(user_id_str)['keyconfig'])
-
+                if len(text.split(':')) > 1:
+                    ways = utils.parsetext(text.split(':')[1], ctrls.getuser(user_id_str)['keyconfig'])
+                else:
+                    ways = -1
 
                 if ways != -1:
                     waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
@@ -328,8 +340,16 @@ def maincycle(ctrls, contest_num):
         
     update_rating(ctrls, user_got_scores, contest_num)
     tweetcontestresult(ctrls,user_got_scores,contest_num)
-    #checksubmissions(ctrls, problemstart_timestamp, curproblemid, problem_num)
+
+    for i in len(contest_problem_num):
+        
+        gifid = utils.creategif(ctrls, problem_nums[i], utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
+
+        if gifid != None:
+            utils.absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=problem_ids[i], auto_populate_reply_metadata=True)
     
+    utils.tweetoverallranking(ctrls, 'Rating Ranking', 'rating')
+
     webhook_receiver.stop(ctrls)
 
     return

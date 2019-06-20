@@ -34,9 +34,8 @@ def tweetnewproblem(ctrls):
 def startround(ctrls, roundstart, timelimit, roundname):
 
     while True:
-        curproblemid, problem_num = tweetnewproblem(ctrls)
 
-        maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num)
+        maincycle(ctrls, timelimit, roundstart)
         
         if datetime.now() >= timelimit:
         
@@ -133,8 +132,13 @@ def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
 
     return
 
-def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
+def maincycle(ctrls, timelimit, roundstart):
     
+    
+    que = webhook_receiver.start(ctrls)
+    
+    curproblemid, problem_num = tweetnewproblem(ctrls)
+
     cdict = ctrls.db['problem'].find_one({'problem_num':problem_num})
     mp = cdict['board']
     robotpos = cdict['robotpos']
@@ -160,7 +164,6 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     #utils.sleepwithlisten(api, min(5 * 60, (timelimit - datetime.now()).total_seconds()), roundstart)
     #utils.sleepwithlisten(ctrls, 5 * 60, roundstart)
     
-    que = webhook_receiver.start(ctrls)
 
     while True:
 

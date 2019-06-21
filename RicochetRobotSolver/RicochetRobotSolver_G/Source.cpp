@@ -101,7 +101,7 @@ markname[] = { "Gear","Moon", "Saturn", "Star" };
 
 struct Tile {
 	bool wall[4] = {}, is_mirror = false, marked = false;
-	int color = NOCOLOR, mark = NOMARK, nextdir[4] = { DOWN, LEFT, UP, RIGHT };
+	int color = NOCOLOR, mark = NOMARK, nextdir[4] = { UP, RIGHT, DOWN, LEFT}, mirror_color = NOCOLOR;
 };
 int count32bit(unsigned v) {
 	unsigned count = (v & 0x55555555) + ((v >> 1) & 0x55555555);
@@ -128,7 +128,7 @@ struct Board {
 	unordered_map<ll, int> rever;//from goal to start
 	int reverdepth = -1;
 	const pii INVALID_MOVE = { -100,-100 };
-	const array<int, 4> mirror_type[2] = { {LEFT,DOWN,RIGHT,UP}, {RIGHT, UP, LEFT, DOWN} };
+	const array<int, 4> mirror_type[2] = { {LEFT,DOWN,RIGHT,UP}, {RIGHT, UP, LEFT, DOWN}};
 	const int DUMMYNUM = PNUM(MP(7, 7));
 
 	inline int MSB32bit(unsigned v) {
@@ -140,6 +140,7 @@ struct Board {
 		v |= (v >> 16);
 		return count32bit(v) - 1;
 	}
+
 	inline int LSB32bit(unsigned v) {
 		if (v == 0) return Width + 1;
 		v |= (v << 1);
@@ -188,18 +189,20 @@ public:
 			if (f.first == -1) break;
 
 			field[f.first][f.second].wall[dir] = true;
-			if (field[f.first + Dir[dir].first >= 0 && f.second + Dir[dir].second] >= 0 && f.first + Dir[dir].first < 16 && f.second + Dir[dir].second < 16)
+			if (f.first + Dir[dir].first >= 0 && f.second + Dir[dir].second >= 0 && f.first + Dir[dir].first < 16 && f.second + Dir[dir].second < 16)
 				field[f.first + Dir[dir].first][f.second + Dir[dir].second].wall[(dir + 2) % 4] = true;
 		}
 
 		//mirror
 		while (1) {
 			pii f;
-			int type;
-			scanf("%d %d %d", &f.first, &f.second, &type);
+			int type, color;
+			scanf("%d %d %d %d", &f.first, &f.second, &color, &type);
 			if (f.first == -1) break;
 
 			field[f.first][f.second].is_mirror = true;
+			field[f.first][f.second].mirror_color = color;
+			
 			REP(i, 4) {
 				field[f.first][f.second].nextdir[i] = mirror_type[type][i];
 			}
@@ -257,21 +260,8 @@ public:
 
 	inline ll Encode(RobotPos robots, int idx) {
 		ll ret = 0;
-		swap(robots[idx], robots[0]);
-		sort(robots.begin() + 1, robots.end());
 		REP(i, robots.size()) {
 			ll cur = PNUM(robots[i]);
-			ret |= cur << i * 8;
-		}
-		return ret;
-	}
-
-	inline ll Encode(array<int, Robotnum> robots, int idx) {
-		ll ret = 0;
-		swap(robots[idx], robots[0]);
-		sort(robots.begin() + 1, robots.end());
-		REP(i, robots.size()) {
-			ll cur = robots[i];
 			ret |= cur << i * 8;
 		}
 		return ret;
@@ -280,7 +270,7 @@ public:
 	pii Go(RobotPos & robots, int idx, int dir) {
 		pii ret = robots[idx];
 
-		bool rvwalls[Width] = {}, rhwalls[Height] = {};
+		unsigned int rvwalls[Width] = {}, rhwalls[Height] = {};
 
 		REP(i, robots.size()) {
 			if (i == idx) continue;
@@ -331,14 +321,19 @@ public:
 			ret.first = (ret.first + Height) % Height;
 			ret.second = (ret.second + Width) % Width;
 
-			dir = field[ret.first][ret.second].nextdir[dir];
+			if (field[ret.first][ret.second].is_mirror && field[ret.first][ret.second].mirror_color != idx)
+				dir = field[ret.first][ret.second].nextdir[dir];
 
 			if (field[ret.first][ret.second].wall[dir] || robots.end() != find(ALL(robots), MP((ret.first + Dir[dir].first + Height) % Height, (ret.second + Dir[dir].second + Width) % Width))) {
 				break;
 			}
 
-			ret.first = (ret.first + Dir[dir].first) % Height;
-			ret.second = (ret.second + Dir[dir].second) % Width;
+			ret.first = (ret.first + Dir[dir].first + Height) % Height;
+			ret.second = (ret.second + Dir[dir].second + Width) % Width;
+
+			if (field[ret.first][ret.second].is_mirror && field[ret.first][ret.second].mirror_color != idx)
+				dir = field[ret.first][ret.second].nextdir[dir];
+
 		}
 		return ret;
 	}
@@ -354,159 +349,55 @@ public:
 		Node(Node * par, T in) : p(par), v(in) { if (par != NULL) root = par->root; }
 	};
 
-	int dist[256][256] = {}, distdir[256][256][4] = {};
-	//vector<Node<pii>*> block[256][256];
-
-	void EnumurateRever(int depth, int goal) {
-		queue<pair<int, array<int, Robotnum>>> que;
-
-		array<int, Robotnum> initpos = { goal, DUMMYNUM,DUMMYNUM,DUMMYNUM,DUMMYNUM };
-
-		reverdepth = depth;
-
-		que.push({ 0,initpos });
-
-		while (que.size()) {
-
-			array<int, Robotnum> cur = que.front().second;
-			int moves = que.front().first;
-
-			que.pop();
-
-			ll code = Encode(cur, 0);
-
-			if (rever.count(code))
-				continue;
-
-			rever[code] = moves;
-
-			if (moves == depth) continue;
-
-			int rc = 0;
-			REP(i, Robotnum) {
-				if (cur[i] == DUMMYNUM)
-					break;
-				else
-					rc++;
-			}
-
-
-			REP(cc, rc) {
-				int y = cur[cc] / Width, x = cur[cc] % Width;
-				int mot = cur[cc];
-				bool ok = false;
-
-				if (field[y][x].wall[LEFT] || find(ALL(cur), y * Width + x - 1) != cur.end())
-					ok = true;
-				if (ok || rc < Robotnum) {
-					if (ok == false)
-						cur[rc] = y * Width + x - 1;
-
-					rep(i, x + 1, Width) {
-						if (field[y][i].wall[LEFT]) break;
-
-						cur[cc] = y * Width + i;
-						que.push({ moves + 1, cur });
-						cur[cc] = mot;
-					}
-					if (ok == false)
-						cur[rc] = DUMMYNUM;
-				}
-
-				ok = false;
-
-				if (field[y][x].wall[UP] || find(ALL(cur), (y - 1) * Width + x) != cur.end())
-					ok = true;
-
-				if (ok || rc < Robotnum) {
-					if (ok == false)
-						cur[rc] = (y - 1) * Width + x;
-					rep(i, y + 1, Height) {
-						if (field[i][x].wall[UP]) break;
-
-						cur[cc] = i * Width + x;
-						que.push({ moves + 1, cur });
-						cur[cc] = mot;
-					}
-					if (ok == false)
-						cur[rc] = DUMMYNUM;
-				}
-
-				ok = false;
-				if (field[y][x].wall[RIGHT] || find(ALL(cur), y * Width + x + 1) != cur.end())
-					ok = true;
-
-				if (ok || rc < Robotnum) {
-					if (ok == false)
-						cur[rc] = y * Width + x + 1;
-					for (int i = x - 1; 0 <= i; i--) {
-						if (field[y][i].wall[RIGHT]) break;
-
-						cur[cc] = y * Width + i;
-						que.push({ moves + 1, cur });
-						cur[cc] = mot;
-					}
-					if (ok == false)
-						cur[rc] = DUMMYNUM;
-				}
-
-				ok = false;
-
-				if (field[y][x].wall[DOWN] || find(ALL(cur), (y + 1) * Width + x) != cur.end())
-					ok = true;
-
-				if (ok || rc < Robotnum) {
-					if (ok == false)
-						cur[rc] = (y + 1) * Width + x;
-					for (int i = y - 1; 0 <= i; i--) {
-						if (field[i][y].wall[DOWN]) break;
-
-						cur[cc] = i * Width + x;
-						que.push({ moves + 1, cur });
-						cur[cc] = mot;
-					}
-					if (ok == false)
-						cur[rc] = DUMMYNUM;
-				}
-			}
-
-		}
-
-	}
+	int dist[Robotnum][256][256] = {}, distdir[Robotnum][256][256][4] = {};
 
 
 	void Calcdist() {
-		Fill(dist, INT_MAX / 10);
-		Fill(distdir, INT_MAX / 10);
+		REP(cc, Robotnum) {
 
-		REP(st, 256) {
-			queue<pair<pii, int>> que;
-			que.push({ { 0,st}, 0 });
-			que.push({ { 0,st}, 1 });
-			que.push({ { 0,st}, 2 });
-			que.push({ { 0,st}, 3 });
+			Fill(dist[cc], INT_MAX / 10);
+			Fill(distdir[cc], INT_MAX / 10);
 
-			while (que.size()) {
-				auto cur = que.front();
-				que.pop();
-				if (distdir[st][cur.first.second][cur.second] >= cur.first.first)	continue;
+			REP(st, 256) {
+				queue<pair<pii, int>> que;
+				que.push({ { 1,st}, 0 });
+				que.push({ { 1,st}, 1 });
+				que.push({ { 1,st}, 2 });
+				que.push({ { 1,st}, 3 });
 
-				distdir[st][cur.first.second][cur.second] = cur.first.first;
+				while (que.size()) {
+					auto cur = que.front();
+					que.pop();
+					if (distdir[cc][st][cur.first.second][cur.second] <= cur.first.first)	continue;
 
-				pii pos = { cur.first.second / Width, cur.first.second % Width };
-				int dir = field[pos.first][pos.second].nextdir[cur.second];
+					distdir[cc][st][cur.first.second][cur.second] = cur.first.first;
 
-				REP(i, 4) {
-					pos = MP((pos.first + Dir[i].first) % Height, (pos.second + Dir[i].second) % Width);
-					int nex = PNUM(pos);
-					que.push({ { cur.first.first + (i != dir), nex }, i });
+					pii pos = { cur.first.second / Width, cur.first.second % Width };
+					int dir = cur.second;
+
+					if(field[pos.first][pos.second].is_mirror && field[pos.first][pos.second].mirror_color != cc)
+						dir = field[pos.first][pos.second].nextdir[cur.second];
+
+					REP(i, 4) {
+						pos = MP((pos.first + Dir[i].first + Height) % Height, (pos.second + Dir[i].second + Width) % Width);
+						int nex = PNUM(pos);
+
+						if (distdir[cc][st][nex][i] > cur.first.first + (i != dir))
+							que.push({ { cur.first.first + (i != dir), nex }, i });
+					}
 				}
-			}
-		}
 
-		REP(st, 256) {
-			REP(en, 256) {
-				dist[st][en] = min({ distdir[st][en][0],distdir[st][en][1] ,distdir[st][en][2] ,distdir[st][en][3] });
+				distdir[cc][st][st][0] = 0;
+				distdir[cc][st][st][1] = 0;
+				distdir[cc][st][st][2] = 0;
+				distdir[cc][st][st][3] = 0;
+
+			}
+
+			REP(st, 256) {
+				REP(en, 256) {
+					dist[cc][st][en] = min({ distdir[cc][st][en][0],distdir[cc][st][en][1] ,distdir[cc][st][en][2] ,distdir[cc][st][en][3] });
+				}
 			}
 		}
 
@@ -521,11 +412,11 @@ public:
 			return (to.first != robots[idx].first) + (to.second != robots[idx].second);
 		}
 		if (level == 0) {
-			return dist[frp][top];
+			return dist[idx][frp][top];
 		}
 	}
 	int DFS(RobotPos & robots, int idx, pii to, vector<pair<int, pii>> & history,
-		int* bound, int mxlv = 0, int br = 0, int depth = 0, bool res = false) {
+		int* bound, int mxlv = 0, int br = 0, int bdir = -3, int depth = 0, bool res = false) {
 
 
 		static unordered_map<ll, pair<vector<pair<int, pii>>, RobotPos>> al;
@@ -587,17 +478,20 @@ public:
 
 
 		int index[5] = { 0,1,2,3,4 };
+		swap(index[0], index[br]);
 		//rotate(index, index + br, index + br + 1);
 		int index2[4] = { 0,1,2,3 };
 		REP(i, robots.size()) {
 			pii cp = robots[index[i]];
 			REP(j, 4) {
+				if (index[i] == br && index2[j] == OPP(bdir)) continue;
+
 				pii nex = Go(robots, index[i], index2[j]);
 				if (nex == cp || nex == INVALID_MOVE) continue;
 				robots[index[i]] = nex;
 
 				vector<pair<int, pii>> buf;
-				int ret = DFS(robots, idx, to, buf, bound, mxlv, index[i], depth + 1);
+				int ret = DFS(robots, idx, to, buf, bound, mxlv, index[i], index2[j], depth + 1);
 				if (ret != -1) {
 					buf.push_back({ index[i], nex });
 					Min = min(Min, { ret + 1, buf });
@@ -621,15 +515,10 @@ public:
 	}
 
 	vector<pair<int, pii>> DFSSolve(RobotPos robots, int idx, pii to, int bound, int mxlv, bool res = true) {
-		swap(robots[idx], robots[0]);
-
+		
 		vector<pair<int, pii>> ret;
-		DFS(robots, 0, to, ret, &bound, mxlv, 0, 0, res);
+		DFS(robots, idx, to, ret, &bound, mxlv, 0,-3,  0, res);
 		reverse(ALL(ret));
-		for (auto& itr : ret) {
-			if (itr.first == idx) itr.first = 0;
-			else if (itr.first == 0) itr.first = idx;
-		}
 		return ret;
 	}
 
@@ -678,9 +567,9 @@ signed main(void) {
 
 	//board.EnumurateRever(5, goal.first * board.Width + goal.second);
 
-	int fbound = 15;
+	int fbound = 10;
 	while (1) {
-		auto sol = board.DFSSolve(robots, idx, goal, fbound, 3, fbound == 15);
+		auto sol = board.DFSSolve(robots, idx, goal, fbound, 3, fbound == 10);
 		fbound += 5;
 		if (sol.size() == 0)continue;
 		cout << sol.size() << endl;

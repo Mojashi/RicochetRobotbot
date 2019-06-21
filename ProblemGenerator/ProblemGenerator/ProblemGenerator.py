@@ -6,7 +6,7 @@ import sys
 import json
 import time
 
-def GenerateImage(mp, goalpos, robotpos,mainrobot, mirrors = []):
+def GenerateImage(mp, goalpos, robotpos,mainrobot, mirror = []):
 
     robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
 

@@ -167,15 +167,15 @@ def update_ranking(ctrls, user_got_scores):
 
 
 
-def tweetnewproblem(ctrls, move, num):
+def tweetnewproblem(ctrls, move, num, enable_torus, enable_mirror):
     
     #movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
     
     
     newprob = None
-    while newprob == None:
-        newprob = utils.picknewproblem(ctrls, move)
-
+    newprob = utils.picknewproblem(ctrls, move, enable_torus, enable_mirror)
+    if newprob == None:
+        return None,None
 
     stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'],
                                status="この問題の回答はリプライではなくDMで送信してください。解答の冒頭に " + str(num) + ": と付けてください。\nProblem number:" + str(newprob['problem_num']) + "\nOptimal:" +str(newprob['optimal_moves']) + 'moves\nhttps://twitter.com/messages/compose?recipient_id='+str(ctrls.dm_rec_id))
@@ -236,7 +236,13 @@ def maincycle(ctrls, contest_num):
         with open('contest_temp.json', 'w') as f:
             f.write('')
         for i in range(contest_problem_num):
-            id,num = tweetnewproblem(ctrls, random.randint(move_range[i][0],move_range[i][1]), i)
+
+            while True:
+                id,num = tweetnewproblem(ctrls, random.randint(move_range[i][0],move_range[i][1]), i, random.randint(0,2) > 1,random.randint(0,2) > 1)
+                if id == None:
+                    continue
+                break
+
             problem_ids.append(id)
             problem_nums.append(num)
 

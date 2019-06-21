@@ -6,6 +6,54 @@ import sys
 import time
 import copy
 
+
+
+def GenerateImage(mp, goalpos, robotpos, mainrobot, mirror,baseimgname = ''):
+    
+    robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
+    width = robotimg[0].width
+    height = robotimg[0].height
+
+    mirrorimg = [Image.open('img/mirror/blue.png'),Image.open('img/mirror/red.png'),Image.open('img/mirror/green.png'),Image.open('img/mirror/yellow.png'),Image.open('img/mirror/black.png')]
+    
+    ret = Image.new('RGB', (width * 16, height * 16))
+
+    if baseimgname == '':
+        groundimg = Image.open('img/ground.png')
+        wallimg = Image.open('img/wall.png')
+        goalimg = Image.open('img/goal.png')
+        centerimg = Image.open('img/center.png')
+        
+        markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
+
+        
+        for i in range(16):
+            for j in range(16):
+                if (i == 7 or i == 8) and (j == 7 or j == 8):
+                    ret.paste(centerimg, (i * width, j * height))
+                else:
+                    ret.paste(groundimg, (i * width, j * height))
+                    for k in range(4):
+                        if mp[i][j][k] == 1:
+                            ret.paste(wallimg.rotate(k * -90), (i * width, j * height), wallimg.rotate(k * -90).split()[3])
+
+        for mr in mirror:
+            ret.paste(mirrorimg[mr[2]].rotate(mr[3] * 90), (mr[0] * width, mr[1] * height), mirrorimg[mr[2]].rotate(mr[3] * 90).split()[3])
+
+        ret.paste(markimg[mainrobot], (int(7.5 * width), int(7.5 * height)), markimg[mainrobot].split()[3])
+        ret.paste(goalimg,  (goalpos[0] * width, goalpos[1] * height), goalimg.split()[3])
+        
+        baseimg = copy.copy(ret)
+    else:
+        baseimg = Image.open(baseimgname)
+        ret = Image.open(baseimgname)
+       
+    for i in range(5):
+        ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
+
+    return baseimg,ret
+
+
 def setwall(mp,x,y,d):
     Dir = [[0,-1],[1,0], [0,1],[-1,0]]
     mp[x][y][d] = 1
@@ -15,28 +63,31 @@ def setwall(mp,x,y,d):
 
         
 def solve(mp, goalpos, robotpos, mainrobot, timeout_sec, enable_torus, enable_mirror, mirror = []):
-    solver_name = "solver.exe"
+    solver_name = "RicochetRobotSolver.exe"
 
     if enable_mirror or enable_torus:
         solver_name = "solver_g.exe"
 
-    with subprocess.Popen("solver.exe", stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
+    with subprocess.Popen(solver_name, stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
         instr = ""
 
         for i in range(16):
             for j in range(16):
+                if mp[i][j][0] == 1:
+                    instr += str(j) + " " + str(i) + " 0\n"
                 if mp[i][j][1] == 1:
                     instr += str(j) + " " + str(i) + " 1\n"
                 if mp[i][j][2] == 1:
                     instr += str(j) + " " + str(i) + " 2\n"
+                if mp[i][j][3] == 1:
+                    instr += str(j) + " " + str(i) + " 3\n"
         
         instr += "-1 -1 -1\n"
         
-        if enable_mirror or enable_torus:
-            for mr in mirror:
-                instr += str(mr[1]) + ' ' + str(mr[0]) + ' ' + str(mr[2]) + '\n'
+        for mr in mirror:
+           instr += str(mr[1]) + ' ' + str(mr[0]) + ' ' + str(mr[2]) + ' ' + str(mr[3]) +'\n'
 
-            instr += '-1 -1 -1\n'
+        instr += '-1 -1 -1 -1\n'
 
         for i in range(5):
             instr += str(robotpos[i][1]) + " " + str(robotpos[i][0]) + "\n"
@@ -84,12 +135,18 @@ def rngboard(enable_torus = False, enable_mirror = False):
 
     if enable_mirror == True:
         mrcount = random.randint(4, 10)
+        candnum = list(range(0,16*16))
+        candnum.remove(7*16+7)
+        candnum.remove(7*16+8)
+        candnum.remove(8*16+7)
+        candnum.remove(8*16+8)
+        cand = [[math.floor(num/16),num%16] for num in random.sample(candnum, mrcount)]
 
-    for i in range(mrcount):
-        x = random.randint(0, 15)
-        y = random.randint(0, 15)
-        type = random.randint(0, 1)
-        mirror.append((x,y,type))
+        for i in range(mrcount):
+            x,y  = cand[i]
+            color = random.randint(0,4)
+            type = random.randint(0, 1)
+            mirror.append((x,y,color, type))
 
     elcount = random.randint(15,33)
 
@@ -127,6 +184,7 @@ def ProblemGenerate(lowerbound, timeout, enable_torus = False, enable_mirror = F
        
         try:
             answer = solve(mp,goalpos, robotpos,mainrobot,timeout, enable_torus, enable_mirror, mirror)
+            
             if int(answer.decode('utf-8').split('\n')[0]) <= lowerbound:
                 print("too short")
                 continue
@@ -149,4 +207,9 @@ def ProblemGenerate(lowerbound, timeout, enable_torus = False, enable_mirror = F
 
 
 if __name__ == '__main__':
-    print(ProblemGenerate(0, 10, True, True))
+    js = ProblemGenerate(0, 10, int(sys.argv[1]) == 1, int(sys.argv[2]) == 1)
+    print(js)
+    pics = GenerateImage(js["board"], js["goalpos"], js["robotpos"], js["mainrobot"], js["mirror"])
+    
+    pics[0].save("out_base.png")
+    pics[1].save("out.png")

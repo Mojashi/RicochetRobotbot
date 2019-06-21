@@ -42,9 +42,9 @@ def convert_timestamp(timestamp):
 
 
 
-def picknewproblem(ctrls, move):
+def picknewproblem(ctrls, move, enable_torus, enable_mirror):
     
-    newprob = ctrls.db['problem'].find_one({'used':False, 'optimal_moves':move})
+    newprob = ctrls.db['problem'].find_one({'used':False, 'optimal_moves':move, 'enable_torus':enable_torus, 'enable_mirror':enable_mirror})
     
     if newprob == None:
       return None
@@ -160,7 +160,6 @@ def creategif(ctrls, problem_num, ans):
     height = int(fimg.height / 2)
     imgs = [fimg.resize((width,height))]
     
-
     for way in ans:
         num = int(way[0])
         d = way[1]
@@ -360,20 +359,57 @@ def commandproc(ctrls, stat, fr=-1):
 
     return
 
-def convertans(answer, robotpos):
-    Dir = {'u':[0,-1],'r':[1,0],'d':[0,1],'l':[-1,0]}
+def Go(mp, mirror, robotpos, num, dir):
+    Dir = [[0,-1],[1,0],[0,1],[-1,0]]
+    nextdir = [[3,2,1,0],[1,0,3,2]]
+
+    al = []
     curpos = copy.copy(robotpos)
+    move_history = [curpos]
+
+    while True:
+        if (curpos ,dir) in al:
+            return None
+
+        al.append((curpos, dir))
+
+        front = curpos + Dir[dir]
+        front[0] = (front[0] + 16) % 16
+        front[1] = (front[1] + 16) % 16
+        
+        if (front in robotpos) or (mp[curpos[0]][curpos[1]][dir] == 1):
+            move_history.append(curpos)
+            return move_history
+
+        curpos = front
+
+        for mr in mirror:
+            if mr[0] == curpos[0] and mr[1] == curpos[1] and mr[2] != num:
+                dir = nextdir[mr[3]]
+                move_history.append(curpos)
+                break
+
+    return
+
+def convertans(dict):
+    Dir = {'u':[0,-1],'r':[1,0],'d':[0,1],'l':[-1,0]}
+    curpos = copy.copy(dict["robotpos"])
+    answer = dict["answer"]
+    mirror = dict["mirror"]
 
     ret = ''
     for i in range(len(answer)):
         nex = answer[i]
         num,y,x = [int(x) for x in nex.split(' ')]
         
-        for itr in Dir.items():
-            if itr[1] == [(x - curpos[num][0] > 0) - (x - curpos[num][0] < 0),(y - curpos[num][1] > 0) - (y - curpos[num][1] < 0)]:
-                ret += str(num) + itr[0] + ','
-                curpos[num] = [x,y]
-                break
+        for i in range(4):
+            move_history = Go(dict["mp"], curpos, num, i)
+            if move_history == None:
+                continue
+
+            if move_history[-1] == nex:
+                ret += Dir.items()[i][0] + ","
+                reak
 
     return ret.rstrip(',')
 
@@ -421,42 +457,47 @@ def tweetlongtext(ctrls, **kwargs):
     return beforestat
 
 
-def GenerateImage(mp, goalpos, robotpos, mainrobot, baseimgname = ''):
+
+def GenerateImage(mp, goalpos, robotpos, mainrobot, mirror,baseimgname = ''):
     
     robotimg = [Image.open('img/robot/blue.png'),Image.open('img/robot/red.png'),Image.open('img/robot/green.png'),Image.open('img/robot/yellow.png'),Image.open('img/robot/black.png')]
     width = robotimg[0].width
     height = robotimg[0].height
 
-    ret = Image.new('RGB', (width * 16, height*16))
+    mirrorimg = [Image.open('img/mirror/blue.png'),Image.open('img/mirror/red.png'),Image.open('img/mirror/green.png'),Image.open('img/mirror/yellow.png'),Image.open('img/mirror/black.png')]
+    
+    ret = Image.new('RGB', (width * 16, height * 16))
 
     if baseimgname == '':
         groundimg = Image.open('img/ground.png')
         wallimg = Image.open('img/wall.png')
         goalimg = Image.open('img/goal.png')
-        centerimg = Image.open('img/center.png');
+        centerimg = Image.open('img/center.png')
         
         markimg = [Image.open('img/mark/blue.png'),Image.open('img/mark/red.png'),Image.open('img/mark/green.png'),Image.open('img/mark/yellow.png'),Image.open('img/mark/black.png')]
 
         
-        
         for i in range(16):
             for j in range(16):
-                if (i==7 or i==8) and (j == 7 or j == 8):
-                    ret.paste(centerimg, (i*width, j*height))
+                if (i == 7 or i == 8) and (j == 7 or j == 8):
+                    ret.paste(centerimg, (i * width, j * height))
                 else:
-                    ret.paste(groundimg, (i*width, j*height))
+                    ret.paste(groundimg, (i * width, j * height))
                     for k in range(4):
                         if mp[i][j][k] == 1:
-                            ret.paste(wallimg.rotate(k * -90), (i*width, j*height), wallimg.rotate(k * -90).split()[3])
+                            ret.paste(wallimg.rotate(k * -90), (i * width, j * height), wallimg.rotate(k * -90).split()[3])
 
-        ret.paste(markimg[mainrobot], (int(7.5*width), int(7.5*height)), markimg[mainrobot].split()[3]);
-        ret.paste(goalimg,  (goalpos[0]*width, goalpos[1]*height), goalimg.split()[3])
+        for mr in mirror:
+            ret.paste(mirrorimg[mr[2]].rotate(mr[3] * 90), (mr[0] * width, mr[1] * height), mirrorimg[mr[2]].rotate(mr[3] * 90).split()[3])
+
+        ret.paste(markimg[mainrobot], (int(7.5 * width), int(7.5 * height)), markimg[mainrobot].split()[3])
+        ret.paste(goalimg,  (goalpos[0] * width, goalpos[1] * height), goalimg.split()[3])
         
         baseimg = copy.copy(ret)
     else:
         baseimg = Image.open(baseimgname)
         ret = Image.open(baseimgname)
-
+       
     for i in range(5):
         ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
 

@@ -11,11 +11,11 @@ import random
 import utils
 import APIControler
 
-def tweetnewproblem(ctrls):
+def tweetnewproblem(ctrls, enable_torus, enable_mirror):
     
     newprob = None
     while newprob == None:
-        newprob = utils.picknewproblem(ctrls, random.randint(5, 14))
+        newprob = utils.picknewproblem(ctrls, random.randint(5, 14), enable_torus, enable_mirror)
 
     stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'], status="Problem number:" + str(newprob['problem_num']))
     
@@ -25,9 +25,12 @@ def tweetnewproblem(ctrls):
     return stat.id, newprob['problem_num']
 
 def startround(ctrls, roundstart, timelimit, roundname):
+    
+    enable_torus =random.randint(0,2) > 1
+    enable_mirror =random.randint(0,2) > 1
 
     while True:
-        curproblemid, problem_num = tweetnewproblem(ctrls)
+        curproblemid, problem_num = tweetnewproblem(ctrls, enable_torus, enable_mirror)
 
         maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num)
         
@@ -55,7 +58,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     baseimgname = cdict['baseimg']
     optimal_moves = cdict['optimal_moves']
 
-    assumed_solution = utils.convertans(answer, robotpos)
+    assumed_solution = utils.convertans(cdict)
     print(assumed_solution)
 
     while True:

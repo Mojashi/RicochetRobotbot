@@ -13,14 +13,14 @@ import utils
 import webhook_receiver
 import APIControler
 
-def tweetnewproblem(ctrls):
+def tweetnewproblem(ctrls, enable_torus, enable_mirror):
     
     #movecount = ProblemGenerator.ProblemGenerate('problems/' + str(len(history) + 1), 8)
     
     
     newprob = None
     while newprob == None:
-        newprob = utils.picknewproblem(ctrls, random.randint(9, 16))
+        newprob = utils.picknewproblem(ctrls, random.randint(9, 16), enable_torus, enable_mirror)
 
 
     stat = utils.absolutedofunc(ctrls.twapi.update_with_media, filename=newprob['img'],
@@ -32,10 +32,13 @@ def tweetnewproblem(ctrls):
     return stat.id, newprob['problem_num']
 
 def startround(ctrls, roundstart, timelimit, roundname):
+    
+    enable_torus =random.randint(0,2) > 1
+    enable_mirror =random.randint(0,2) > 1
 
     while True:
 
-        maincycle(ctrls, timelimit, roundstart)
+        maincycle(ctrls, timelimit, roundstart, enable_torus, enable_mirror)
         
         if datetime.now() >= timelimit:
         
@@ -59,85 +62,12 @@ def tweetproblemresult(ctrls, curproblemid, problem_num, user_got_score):
     
     return
 
-
-def checksubmissions(ctrls, start_timestamp, curproblemid, problem_num):
-    
-    problemend_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem ended')
-        
-    cdict = ctrls.db['problem'].find_one({'problem_num' : problem_num})
-
-    mp = cdict['board']
-    robotpos = cdict['robotpos']
-    goalpos = cdict['goalpos']
-    mainrobot = cdict['mainrobot']
-    answer = cdict['answer']
-    imgname = cdict['img']
-    baseimgname = cdict['baseimg']
-    optimal_moves = cdict['optimal_moves']
-
-    assumed_solution = utils.convertans(answer, robotpos)
-    
-    text = 'Timeup.\n'
-    text += 'Answer:' + assumed_solution
-    utils.absolutedofunc( ctrls.twapi.update_status,text, in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
-    
-    gifid = utils.creategif(ctrls, problem_num, utils.parsetext(assumed_solution, {'u':0,'r':1,'d':2,'l':3}))
-
-    if gifid != None:
-        utils.absolutedofunc(ctrls.twapi.update_status,'gif', media_ids = [gifid], in_reply_to_status_id=curproblemid, auto_populate_reply_metadata=True)
-    
-    utils.sleepwithlisten(ctrls,30)
-    msgs = ctrls.dmapi.receive_dm(since_timestamp = start_timestamp, until_timestamp=problemend_timestamp)
-    
-    user_got_score = {}
-
-
-    for msg in msgs:
-
-        if str(msg['message_create']['sender_id']) == str(ctrls.dm_rec_id):
-            continue
-
-        print(msg)
-
-        text = msg['message_create']['message_data']['text']
-        user_id_str = str(msg['message_create']['sender_id'])
-    
-
-        screenname = ""
-        if ctrls.getuser(user_id_str) == None:
-            screenname =  utils.absolutedofunc(ctrls.twapi.get_user, user_id = int(user_id_str)).screen_name
-
-        utils.setdefaultuser(ctrls, user_id_str, screenname)
-
-        ctrls.db['user'].update_one({'user_id' : user_id_str}, {'$addToSet' : {'history': problem_num}})
-
-        if user_id_str not in user_got_score.keys():
-            user_got_score[user_id_str] = 0
-
-        ways = utils.parsetext(text, ctrls.getuser(user_id_str)['keyconfig'])
-
-        if ways != -1:
-            waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
-            if waycou != -1:
-                point = max(1, int(100 * math.pow(0.5, waycou - optimal_moves)))
-
-                user_got_score[user_id_str] = max(point , user_got_score[user_id_str])
-
-
-    for key in user_got_score.keys():
-        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'roundscore': user_got_score[key]}})
-        ctrls.db['user'].update({'user_id':key}, {'$inc' : {'pointsum.Time-Limited': user_got_score[key]}})
-        
-    tweetproblemresult(ctrls, curproblemid, problem_num, user_got_score)
-
-    return
-
-def maincycle(ctrls, timelimit, roundstart):
+def maincycle(ctrls, timelimit, roundstart, enable_torus, enable_mirror):
     
     
     que = webhook_receiver.start(ctrls)
     
-    curproblemid, problem_num = tweetnewproblem(ctrls)
+    curproblemid, problem_num = tweetnewproblem(ctrls, enable_torus, enable_mirror)
 
     cdict = ctrls.db['problem'].find_one({'problem_num':problem_num})
     mp = cdict['board']
@@ -153,7 +83,7 @@ def maincycle(ctrls, timelimit, roundstart):
 
     user_got_score = {}
         
-    assumed_solution = utils.convertans(answer, robotpos)
+    assumed_solution = utils.convertans(cdict)
     print(assumed_solution)
 
     problemstart_timestamp = ctrls.dmapi.send_dm(ctrls.twapi.get_user(screen_name = 'oreha_senpai').id, 'problem started')

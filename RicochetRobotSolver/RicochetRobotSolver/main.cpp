@@ -179,11 +179,13 @@ public:
 			int dir;
 			scanf("%d %d %d", &f.first, &f.second, &dir);
 			if (f.first == -1) break;
-
+			
 			field[f.first][f.second].wall[dir] = true;
-			if (field[f.first + Dir[dir].first >= 0 && f.second + Dir[dir].second] >= 0 && f.first + Dir[dir].first < 16 && f.second + Dir[dir].second < 16)
+			if (f.first + Dir[dir].first >= 0 && f.second + Dir[dir].second >= 0 && f.first + Dir[dir].first < 16 && f.second + Dir[dir].second < 16)
 				field[f.first + Dir[dir].first][f.second + Dir[dir].second].wall[(dir + 2) % 4] = true;
 		}
+
+		scanf("%*d %*d %*d %*d");
 
 		REP(i, Width) {
 			field[0][i].wall[UP] = true;
@@ -919,11 +921,11 @@ signed main(void) {
 	cin >> idx;
 	cin >> goal.first >> goal.second;
 
-	board.EnumurateRever(5, goal.first * board.Width + goal.second);
+	//board.EnumurateRever(5, goal.first * board.Width + goal.second);
 
 	int fbound = 15;
 	while (1) {
-		auto sol = board.DFSSolve(robots, idx, goal, fbound, 3, fbound == 15);
+		auto sol = board.DFSSolve(robots, idx, goal, fbound, 2, fbound == 15);
 		fbound += 5;
 		if (sol.size() == 0)continue;
 		cout << sol.size() << endl;

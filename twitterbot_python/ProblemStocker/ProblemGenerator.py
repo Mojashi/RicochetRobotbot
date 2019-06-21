@@ -14,7 +14,12 @@ def setwall(mp,x,y,d):
         mp[nex[0]][nex[1]][(d+2)%4] = 1
 
         
-def solve(mp, goalpos, robotpos, mainrobot, timeout_sec):
+def solve(mp, goalpos, robotpos, mainrobot, timeout_sec, enable_torus, enable_mirror, mirror = []):
+    solver_name = "solver.exe"
+
+    if enable_mirror or enable_torus:
+        solver_name = "solver_g.exe"
+
     with subprocess.Popen("solver.exe", stdout=subprocess.PIPE,stdin = subprocess.PIPE) as p:
         instr = ""
 
@@ -26,6 +31,12 @@ def solve(mp, goalpos, robotpos, mainrobot, timeout_sec):
                     instr += str(j) + " " + str(i) + " 2\n"
         
         instr += "-1 -1 -1\n"
+        
+        if enable_mirror or enable_torus:
+            for mr in mirror:
+                instr += str(mr[1]) + ' ' + str(mr[0]) + ' ' + str(mr[2]) + '\n'
+
+            instr += '-1 -1 -1\n'
 
         for i in range(5):
             instr += str(robotpos[i][1]) + " " + str(robotpos[i][0]) + "\n"
@@ -45,14 +56,15 @@ def solve(mp, goalpos, robotpos, mainrobot, timeout_sec):
 
     return outdata
 
-def rngboard():
+def rngboard(enable_torus = False, enable_mirror = False):
     mp = [[[0 for k in range(4)] for i in range(16)] for j in range(16)]
     
-    for i in range(16):
-        setwall(mp,0,i,3)
-        setwall(mp,15,i,1)
-        setwall(mp,i,0,0)
-        setwall(mp,i,15,2)
+    if enable_torus == False:
+        for i in range(16):
+            setwall(mp,0,i,3)
+            setwall(mp,15,i,1)
+            setwall(mp,i,0,0)
+            setwall(mp,i,15,2)
         
     setwall(mp,7,7,1)
     setwall(mp,7,7,2)
@@ -65,10 +77,22 @@ def rngboard():
     setwall(mp,8,8,0)
     setwall(mp,8,8,3)
     setwall(mp,7,8,2)
-    setwall(mp,7,8,3);
+    setwall(mp,7,8,3)
 
+    mrcount = 0
+    mirror = []
+
+    if enable_mirror == True:
+        mrcount = random.randint(4, 10)
+
+    for i in range(mrcount):
+        x = random.randint(0, 15)
+        y = random.randint(0, 15)
+        type = random.randint(0, 1)
+        mirror.append((x,y,type))
 
     elcount = random.randint(15,33)
+
 
     for i in range(elcount):
         x = random.randint(0, 15)
@@ -76,10 +100,9 @@ def rngboard():
         d = random.randint(0, 3)
         setwall(mp,x,y,d)
         setwall(mp,x,y,(d + 1)%4)
-    return mp
+    return mp, mirror
 
-
-def ProblemGenerate(lowerbound, timeout, torus = False, Mirror = False):
+def ProblemGenerate(lowerbound, timeout, enable_torus = False, enable_mirror = False):
     
     #while True:
     #    [y,x,d] = raw_input().split(' ')
@@ -91,7 +114,7 @@ def ProblemGenerate(lowerbound, timeout, torus = False, Mirror = False):
     #        mp[nex[0]][nex[1]][(int(d)+2)%4] = 1
     
     while True:
-        mp = rngboard()
+        mp, mirror = rngboard(enable_torus, enable_mirror)
         candnum = list(range(0,16*16))
         candnum.remove(7*16+7)
         candnum.remove(7*16+8)
@@ -103,7 +126,7 @@ def ProblemGenerate(lowerbound, timeout, torus = False, Mirror = False):
         mainrobot = random.randint(0,4)
        
         try:
-            answer = solve(mp,goalpos, robotpos,mainrobot,timeout)
+            answer = solve(mp,goalpos, robotpos,mainrobot,timeout, enable_torus, enable_mirror, mirror)
             if int(answer.decode('utf-8').split('\n')[0]) <= lowerbound:
                 print("too short")
                 continue
@@ -120,10 +143,10 @@ def ProblemGenerate(lowerbound, timeout, torus = False, Mirror = False):
     ansmoves.pop(len(ansmoves) - 1)
     optmoves = int(ansmoves[0])
     ansmoves.pop(0)
-    outdict = {"problem_num":-1, "used":False,"tweet_id":-1, "board":mp, "baseimg":'',"img":'',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"optimal_moves":optmoves,"answer":ansmoves}
+    outdict = {"problem_num":-1, "used":False,"tweet_id":-1,"enable_torus":enable_torus, "enable_mirror":enable_mirror, "board":mp,"mirror":mirror, "baseimg":'',"img":'',"goalpos":goalpos,"robotpos":robotpos,"mainrobot":mainrobot,"optimal_moves":optmoves,"answer":ansmoves}
     
     return outdict
 
 
 if __name__ == '__main__':
-    print(ProblemGenerate(0))
+    print(ProblemGenerate(0, 10, True, True))

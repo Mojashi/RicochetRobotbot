@@ -78,7 +78,7 @@ def maincycle(ctrls, timelimit, roundstart, enable_torus, enable_mirror):
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
     optimal_moves = cdict['optimal_moves']
-    
+    mirror = cdict['mirror']
     start_time = datetime.now()
 
     user_got_score = {}
@@ -130,7 +130,7 @@ def maincycle(ctrls, timelimit, roundstart, enable_torus, enable_mirror):
 
 
                 if ways != -1:
-                    waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                    waycou = utils.checkanswer(mp,mirror, robotpos,goalpos,mainrobot, ways)
                     if waycou != -1:
                         
                         point = max(1, int((point_rate[0] * (problem_length - elapsed_sec) + point_rate[1] * elapsed_sec) / problem_length * math.pow(0.5, waycou - optimal_moves)))

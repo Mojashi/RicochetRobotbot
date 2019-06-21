@@ -63,7 +63,7 @@ def setwall(mp,x,y,d):
 
         
 def solve(mp, goalpos, robotpos, mainrobot, timeout_sec, enable_torus, enable_mirror, mirror = []):
-    solver_name = "RicochetRobotSolver.exe"
+    solver_name = "solver.exe"
 
     if enable_mirror or enable_torus:
         solver_name = "solver_g.exe"

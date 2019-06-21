@@ -13,4 +13,4 @@ if istest == 0:
     db = mongocl['ricochettest']
 
 while True:
-    db['problem'].save(ProblemGenerator.ProblemGenerate(0, timeout,random.randint(0,2)>1,random.randint(0,2)>1))
+    db['problem'].save(ProblemGenerator.ProblemGenerate(0, timeout,random.randint(0,2)>0,random.randint(0,2)>0))

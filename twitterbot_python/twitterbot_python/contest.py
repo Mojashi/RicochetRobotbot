@@ -294,6 +294,7 @@ def maincycle(ctrls, contest_num):
                 imgname = cdicts[pnum]['img']
                 baseimgname = cdicts[pnum]['baseimg']
                 optimal_moves = cdicts[pnum]['optimal_moves']
+                mirror = cdicts[pnum]['mirror']
 
                 screenname = ""
                 if ctrls.getuser(user_id_str) == None:
@@ -314,7 +315,7 @@ def maincycle(ctrls, contest_num):
                     ways = -1
 
                 if ways != -1:
-                    waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                    waycou = utils.checkanswer(mp,mirror, robotpos,goalpos,mainrobot, ways)
                     if waycou != -1:
                         
                         point = max(1, int((point_rate[0] * (timelimit - elapsed_sec) + point_rate[1] * elapsed_sec) / timelimit * math.pow(0.5, waycou - optimal_moves)))

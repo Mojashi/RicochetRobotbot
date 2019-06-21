@@ -22,7 +22,7 @@ if __name__ == '__main__':
     utils.getmentions.lastid = ctrls.twapi.mentions_timeline(count=1)[0].id
     
     
-    roundrange = [1,58]
+    roundrange = [1,59]
     
     while datetime.now().minute < roundrange[0] or datetime.now().minute >= roundrange[1]:
         utils.sleepwithlisten(ctrls, 1)

@@ -55,7 +55,7 @@ def picknewproblem(ctrls, move, enable_torus, enable_mirror):
     else:
         newprob['problem_num'] = plist[0]['problem_num'] + 1
     
-    pics = GenerateImage(newprob['board'],newprob['goalpos'],newprob['robotpos'],newprob['mainrobot'])
+    pics = GenerateImage(newprob['board'],newprob['goalpos'],newprob['robotpos'],newprob['mainrobot'], newprob['mirror'])
     pics[0].save("problems/" + str(newprob['problem_num'])+'_base.png')
     pics[1].save("problems/" + str(newprob['problem_num'])+'.png')
 
@@ -100,9 +100,11 @@ def decoratename(ctrls, userid_str, username = ''):
 def parsetext(text, dirdict):
     ways = text.split()
 
-    while ways[0][0] == '@':
+    while True:
+        if ways[0][0] != '@' or len(ways) == 0:
+            break
         ways.pop(0)
-        
+
     waysstr = ''.join(ways)
 
     match = re.findall(r'[a-z0-9]', waysstr.lower())
@@ -120,7 +122,7 @@ def parsetext(text, dirdict):
 
     return ret
 
-def checkanswer(mp, robotpos, goalpos, mainrobot, ans):
+def checkanswer(mp, mirror, robotpos, goalpos, mainrobot, ans):
     Dir = [[0,-1],[1,0],[0,1],[-1,0]]
 
     curpos = copy.copy(robotpos)
@@ -129,11 +131,9 @@ def checkanswer(mp, robotpos, goalpos, mainrobot, ans):
         num = way[0]
         d = way[1]
 
-        while True:
-            nex = [curpos[num][0] + Dir[d][0],curpos[num][1] + Dir[d][1]]
-            if mp[curpos[num][0]][curpos[num][1]][d] == 1 or nex in curpos:
-                break
-            curpos[num] = nex
+        curpos[num] = Go(mp, mirror, curpos, num, d)[-1][0]
+        if curpos[num] == None:
+            return -1
 
     if curpos[mainrobot] != goalpos:
         return -1
@@ -151,6 +151,7 @@ def creategif(ctrls, problem_num, ans):
     mainrobot = cdict['mainrobot']
     answer = cdict['answer']
     imgname = cdict['img']
+    mirror = cdict['mirror']
     if 'baseimg' not in cdict.keys():
         return None
 
@@ -164,24 +165,23 @@ def creategif(ctrls, problem_num, ans):
         num = int(way[0])
         d = way[1]
 
-        fr = curpos[num]
-        to = curpos[num]
-        while True:
-            nex = [to[0] + Dir[d][0], to[1] + Dir[d][1]]
-            if mp[to[0]][to[1]][d] == 1 or nex in curpos:
-                break
-            to = nex
-            
-        while [int(fr[0] * 10),int(fr[1] * 10)] != [int(to[0] * 10),int(to[1] * 10)]:
-            nex = [fr[0] + Dir[d][0] / 1.0, fr[1] + Dir[d][1] / 1.0]
-            fr = nex
-            curpos[num] = fr
-            imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
-            
-        imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
-        imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, baseimgname)[1].resize((width,height)))
+        move_history = Go(mp, mirror, curpos, num, d)
+
+        for nxt in move_history:
+            fr = curpos[num]
+            to = nxt[0]
+            d = nxt[1]
+                
+            while [int(fr[0] * 10),int(fr[1] * 10)] != [int(to[0] * 10),int(to[1] * 10)]:
+                nex = [fr[0] + Dir[d][0] / 1.0, fr[1] + Dir[d][1] / 1.0]
+                fr = nex
+                curpos[num] = fr
+                imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, mirror, baseimgname)[1].resize((width,height)))
+                
+            imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot, mirror,baseimgname)[1].resize((width,height)))
+            imgs.append(GenerateImage(mp,goalpos,curpos, mainrobot,mirror, baseimgname)[1].resize((width,height)))
     
-        curpos[num] = [int(curpos[num][0]),int(curpos[num][1])]
+            curpos[num] = [int(curpos[num][0]),int(curpos[num][1])]
 
     imgs[0].save('buf.gif',save_all = True, append_images=imgs[1:], optimize=True,duration=70, loop = 0)
     
@@ -365,28 +365,28 @@ def Go(mp, mirror, robotpos, num, dir):
 
     al = []
     curpos = copy.copy(robotpos)
-    move_history = [curpos]
+    move_history = [[curpos[num],dir]]
 
     while True:
-        if (curpos ,dir) in al:
+        if [curpos[num] ,dir] in al:
             return None
 
-        al.append((curpos, dir))
+        al.append([curpos[num], dir])
 
-        front = curpos + Dir[dir]
+        front = [curpos[num][0] + Dir[dir][0],curpos[num][1] + Dir[dir][1]]
         front[0] = (front[0] + 16) % 16
         front[1] = (front[1] + 16) % 16
         
-        if (front in robotpos) or (mp[curpos[0]][curpos[1]][dir] == 1):
-            move_history.append(curpos)
+        if (front in curpos) or (mp[curpos[num][0]][curpos[num][1]][dir] == 1):
+            move_history.append([curpos[num],dir])
             return move_history
 
-        curpos = front
+        curpos[num] = front
 
         for mr in mirror:
-            if mr[0] == curpos[0] and mr[1] == curpos[1] and mr[2] != num:
-                dir = nextdir[mr[3]]
-                move_history.append(curpos)
+            if mr[0] == curpos[num][0] and mr[1] == curpos[num][1] and mr[2] != num:
+                dir = nextdir[mr[3]][dir]
+                move_history.append([curpos[num],dir])
                 break
 
     return
@@ -402,14 +402,15 @@ def convertans(dict):
         nex = answer[i]
         num,y,x = [int(x) for x in nex.split(' ')]
         
-        for i in range(4):
-            move_history = Go(dict["mp"], curpos, num, i)
+        for j in range(4):
+            move_history = Go(dict["board"], mirror, curpos, num, j)
             if move_history == None:
                 continue
 
-            if move_history[-1] == nex:
-                ret += Dir.items()[i][0] + ","
-                reak
+            if move_history[-1][0] == [x,y]:
+                ret += str(num) + list(Dir.items())[j][0] + ","
+                curpos[num] = [x,y]
+                break
 
     return ret.rstrip(',')
 
@@ -499,6 +500,11 @@ def GenerateImage(mp, goalpos, robotpos, mainrobot, mirror,baseimgname = ''):
         ret = Image.open(baseimgname)
        
     for i in range(5):
-        ret.paste(robotimg[i], (int(robotpos[i][0]*width), int(robotpos[i][1]*height)), robotimg[i].split()[3])
+        cpos =(int(robotpos[i][0]*width), int(robotpos[i][1]*height))
+        ret.paste(robotimg[i],cpos , robotimg[i].split()[3])
+        cpos =((16 * width + int(robotpos[i][0]*width))%(16*width), (16*height + int(robotpos[i][1]*height))%(16*height))
+        ret.paste(robotimg[i],cpos , robotimg[i].split()[3])
+
+
 
     return baseimg,ret

@@ -57,6 +57,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
     imgname = cdict['img']
     baseimgname = cdict['baseimg']
     optimal_moves = cdict['optimal_moves']
+    mirror = cdict['mirror']
 
     assumed_solution = utils.convertans(cdict)
     print(assumed_solution)
@@ -79,7 +80,7 @@ def maincycle(ctrls, timelimit, roundstart, curproblemid, problem_num):
                 ways = utils.parsetext(stat.text, ctrls.getuser(stat.user.id_str)['keyconfig'])
 
                 if ways != -1:
-                    waycou = utils.checkanswer(mp,robotpos,goalpos,mainrobot, ways)
+                    waycou = utils.checkanswer(mp,mirror, robotpos,goalpos,mainrobot, ways)
                     if waycou != -1:
                         utils.absolutedofunc(ctrls.twapi.create_favorite,stat.id)
                         text = "Accepted(" + str(waycou) + ' moves)'

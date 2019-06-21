@@ -128,7 +128,7 @@ struct Board {
 	unordered_map<ll, int> rever;//from goal to start
 	int reverdepth = -1;
 	const pii INVALID_MOVE = { -100,-100 };
-	const array<int, 4> mirror_type[2] = { {LEFT,DOWN,RIGHT,UP}, {RIGHT, UP, LEFT, DOWN}};
+	const array<int, 4> mirror_type[2] = { array<int, 4>{LEFT,DOWN,RIGHT,UP}, array<int, 4>{RIGHT, UP, LEFT, DOWN}};
 	const int DUMMYNUM = PNUM(MP(7, 7));
 
 	inline int MSB32bit(unsigned v) {
@@ -297,12 +297,6 @@ public:
 			}
 			ita[ret.first][ret.second][dir] = 1;
 
-			if (field[ret.first][ret.second].is_mirror) {
-				if (field[ret.first][ret.second].wall[dir] == false && robots.end() == find(ALL(robots), MP((ret.first + Dir[dir].first + Height) % Height, (ret.second + Dir[dir].second + Width) % Width))) {
-					ret = MP((ret.first + Dir[dir].first + Height) % Height, (ret.second + Dir[dir].second + Width) % Width);
-				}
-			}
-
 			switch (dir) {
 			case UP:
 				ret.first = MSB[(vwalls[ret.second] | rvwalls[ret.second]) & mask[1][ret.first + 1]];
@@ -320,10 +314,7 @@ public:
 
 			ret.first = (ret.first + Height) % Height;
 			ret.second = (ret.second + Width) % Width;
-
-			if (field[ret.first][ret.second].is_mirror && field[ret.first][ret.second].mirror_color != idx)
-				dir = field[ret.first][ret.second].nextdir[dir];
-
+			
 			if (field[ret.first][ret.second].wall[dir] || robots.end() != find(ALL(robots), MP((ret.first + Dir[dir].first + Height) % Height, (ret.second + Dir[dir].second + Width) % Width))) {
 				break;
 			}
